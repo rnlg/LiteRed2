@@ -2263,8 +2263,11 @@ str="Solving IBPs in the corner points..."
 nloops=Length@LMs@nm;
 sectors=Cases[(IntegerDigits[#1,2,nds]&)/@Range[0,2^nds-1],patt];
 nsects=Length@sectors;
-LiteRedMonitor[st=(Plus@@BitOr[ps,#]<nloops)&/@sectors;
-zsectors=Pick[sectors,st];sectors=Pick[sectors,st,False];
+LiteRedMonitor[(*Modified 02.07.2019*)(*st=(Plus@@BitOr[ps,#]<nloops)&/@sectors;
+zsectors=Pick[sectors,st];sectors=Pick[sectors,st,False];*)
+(*Previously used assumption that the sectors with the number of denominators less than a number of loops.
+It fails for non-standard denominators, in particularly, coming from Feynman parametrization of two and more propagators*)
+zsectors={};(*/Modified 02.07.2019*)
 While[sectors=!={},(*While the list has not been depleted*)(*Take the point in the middle of the list*)s1=sectors[[Ceiling[Length@sectors/2]]];
 If[(cds=!=(cds*s1))||chzf@BitOr[ps,s1],(*then move the sector and all its subsectors from sectors to zsectors*)
 st=jsectge[s1-#]&/@sectors;
@@ -3648,11 +3651,11 @@ StyleBox[\"x\", \"TI\"]\).";
 SetAttributes[Dinv,{HoldAll}];
 
 
-Dinv[j1_j,sp[(p_?VecVarQ),(q_?VecVarQ)]]:=Module[{pq,em,nm,djdp},
-nm=First@j1;
+Dinv[j1_j,sp[(p_?VecVarQ),(q_?VecVarQ)]]:=Module[{pq,em,nm,djdp(*,ps*)},
+nm=First@j1;(*ps=Times@@(Ds[nm]^PowerShifts[nm]);*)
 em=DeleteDuplicates[Join[{p,q},EMs@nm]];
-djdp=(D[Fromj[j1],p]/.{Derivative[1,0][sp][a_,b_]:>b,Derivative[0,1][sp][a_,b_]:>a});
-Toj[nm,If[p=!=q,1,1/2]*(sp[#,djdp]&/@em).Inverse[Outer[sp,em,em]].D[em,q]]
+djdp=(D[fromjps[j1],p]/.{Derivative[1,0][sp][a_,b_]:>b,Derivative[0,1][sp][a_,b_]:>a});
+tojps[nm,If[p=!=q,1,1/2]*(sp[#,djdp]&/@em).Inverse[Outer[sp,em,em]].D[em,q]]
 ]
 
 
@@ -3662,9 +3665,9 @@ D[LFDistribute[expr,sp]/.sp[p,q]->pq,pq,NonConstants->jVars[expr]]/.
 ]
 
 
-Dinv[expr_,s_Symbol]:=Module[{ems},
+Dinv[expr_,s_Symbol]:=Module[{ems,ps},
 ems=Union@@EMs/@Union[First/@jVars[expr]];
-D[expr,s,NonConstants->jVars[expr]]/.HoldPattern[D[jj_j,s,NonConstants->_]]:>(Toj[First@jj,(D[LFDistribute[Fromj[jj],sp],s]/.{})]+Plus@@(dinv[jj,sp[##]]*D[sp[##],s]&@@@Replace[Subsets[ems,{1,2}],{x_}:>{x,x},{1}]))
+D[expr,s,NonConstants->jVars[expr]]/.HoldPattern[D[jj_j,s,NonConstants->_]]:>(tojps[First@jj,(D[LFDistribute[fromjps[jj],sp],s]/.{})]+Plus@@(dinv[jj,sp[##]]*D[sp[##],s]&@@@Replace[Subsets[ems,{1,2}],{x_}:>{x,x},{1}]))
 ];
 
 
@@ -3674,9 +3677,13 @@ SetAttributes[dinv,{HoldAll}];
 dinv[j1_j,sp[(p_?VecVarQ),(q_?VecVarQ)]]:=Module[{pq,em,nm,djdp},
 nm=First@j1;
 em=DeleteDuplicates[Join[{p,q},EMs@nm]];
-djdp=(D[LFDistribute[Fromj[j1],sp],p]/.{Derivative[1,0][sp][a_,b_]:>b,Derivative[0,1][sp][a_,b_]:>a});
-Toj[nm,If[p=!=q,1,1/2]*(sp[#,djdp]&/@em).Inverse[Outer[sp,em,em]].D[em,q]]
+djdp=(D[LFDistribute[fromjps[j1],sp],p]/.{Derivative[1,0][sp][a_,b_]:>b,Derivative[0,1][sp][a_,b_]:>a});
+tojps[nm,If[p=!=q,1,1/2]*(sp[#,djdp]&/@em).Inverse[Outer[sp,em,em]].D[em,q]]
 ]
+
+
+fromjps[jj_]:=Fromj[jj]/Times@@(Ds[First[jj]]^PowerShifts[First[jj]])
+tojps[nm_,jj_]:=Toj[nm,Factor[Times@@(Ds[nm]^PowerShifts[nm])*jj]]
 
 
 ToDShifts::usage="ToDShifts[\!\(\*
