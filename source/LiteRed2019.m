@@ -271,6 +271,9 @@ The package is designed for the search and application of the Integration-By-Par
 It also contains some other useful tools.\n\nSee ?LiteRed`* for a list of functions. "];
 
 
+ SectorLayer
+
+
 Begin["`Private`"]
 
 
@@ -1294,6 +1297,27 @@ hie
 
 
 SectorHierarchy[jjs:{___j},opts:OptionsPattern[]]:=SectorHierarchy[jSector/@jjs,opts]
+
+
+SectorLayer::usage="SectorLayer[js[\!\(\*
+StyleBox[\"basis\", \"TI\"]\),\[Ellipsis]],\!\(\*
+StyleBox[\"depth\", \"TI\"]\)] gives the integrals of the sector with overall declination of indices from those of corner point not more than \!\(\*
+StyleBox[\"depth\", \"TI\"]\).\n SectorLayer[js[\!\(\*
+StyleBox[\"basis\", \"TI\"]\),\[Ellipsis]],{\!\(\*
+StyleBox[\"depth\", \"TI\"]\)}] gives the integrals with declination equal to \!\(\*
+StyleBox[\"depth\", \"TI\"]\).\nSectorLayer[js[\!\(\*
+StyleBox[\"basis\", \"TI\"]\),\[Ellipsis]],{\!\(\*
+StyleBox[\"from\", \"TI\"]\),\!\(\*
+StyleBox[\"to\", \"TI\"]\)}] gives the integrals with declination from \!\(\*
+StyleBox[\"from\", \"TI\"]\) to \!\(\*
+StyleBox[\"to\", \"TI\"]\).";
+
+
+SectorLayer[js[nm_,n:(0|1)..],{depth_Integer?NonNegative}]:=j[nm]@@@(({n}+#)&/@layer[{n},depth])
+
+
+SectorLayer[js[nm_,n:(0|1)..],depth_Integer?NonNegative]:=j[nm]@@@(({n}+#)&/@Join@@(layer[{n},#]&/@Range[0,depth]))
+SectorLayer[js[nm_,n:(0|1)..],{from_Integer?NonNegative,to_Integer?NonNegative}]:=j[nm]@@@(({n}+#)&/@Join@@(layer[{n},#]&/@Range[from,to]))
 
 
 GenerateIBP::usage="GenerateIBP[\!\(\*
@@ -3115,12 +3139,15 @@ res
 ]]
 
 
-ToMIsRule::usage = "ToMIsRule[j[\[Ellipsis]],j[\[Ellipsis]],...] gives a rule to pass to new master integrals.";
+ToMIsRule::usage = "ToMIsRule[{j[\[Ellipsis]],j[\[Ellipsis]],...}] gives a rule to pass to new master integrals.";
 
 
-ToMIsRule[jjs_List]:=ToMIsRule@@jjs;
-ToMIsRule[jjs___]:=Module[{nmis={jjs},l=Length[{jjs}],mis,mis1,rels,matr},
-rels=IBPReduce[{jjs}];
+Options[ToMIsRule]={UseFermat->False}
+
+
+ToMIsRule[jjs___j,opts:OptionsPattern[]]:=ToMIsRule[{jjs},opts];
+ToMIsRule[jjs_List,OptionsPattern[]]:=Module[{nmis=jjs,l=Length[jjs],mis,mis1,rels,matr},
+rels=IBPReduce[nmis];
 mis=Sort[jVars[rels],Less];
 matr=Outer[Coefficient,rels,mis];
 If[MatrixRank@matr<l,Return[$Failed](*dependent*)];
@@ -3131,7 +3158,7 @@ matr=Append[matr,Coefficient[mis,First@mis1]];
 If[MatrixRank@matr<Length@matr,matr=Most[matr],AppendTo[nmis,First@mis1]];
 mis1=Rest@mis1;
 ];
-Return[Collectj[Thread[mis->Inverse[matr].nmis],Factor]]
+Return[Collectj[Thread[mis->If[OptionValue[UseFermat],FInverse[matr],Inverse[matr]].nmis],Factor]]
 ]
 
 
