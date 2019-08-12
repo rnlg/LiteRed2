@@ -2790,7 +2790,8 @@ Assert[Head[us2]===List];
 If[Head[us2]===UniqueSectors,Message[FindExtSymmetries::nosectors,"FindSymmetries",b2];Abort[]];
 NotebookDelete[pt];
 i=0;LiteRedMonitor[
-us2=Function[js2,i++;jsm=js2;{js2,#1,#2[[1,All,1]]}&@@polyNF[fp/.Thread[Pick[xs,List@@Rest@js2,0]->0],Pick[xs,List@@Rest@js2,1]]]/@us2,
+us2=(*Modified 13.08.2019*)Replace[Function[js2,i++;
+jsm=js2;{js2,#1,#2[[All,All,1]]}&@@LiteRed`Private`polyNF[fp/.Thread[Pick[xs,List@@Rest@js2,0]->0],Pick[xs,List@@Rest@js2,1]]]/@us2,{js1_,sgn_,prm_List}:>(Sequence@@({js1,sgn,#}&/@prm)),{1}](*/Modified 13.08.2019*),
 TableForm[{"Forming signatures for unique sectors",ProgressIndicator[i,{0,l}],jsm
 }]];
 (* sgn2 \[LongDash] \:0441\:043f\:0438\:0441\:043e\:043a \:0441 \:044d\:043b\:0435\:043c\:0435\:043d\:0442\:0430\:043c\:0438 {js[\[Ellipsis]],signature_List,inds_List} *)
@@ -2833,7 +2834,7 @@ If[(****)Factor[cds1*(matr.cds2)]===cds1,
 b1/:jExtRules[Sequence@@sec]=(j[b1,##]&@@(If[#1==1,"pt"["p"[#2,Blank[]],Positive],"pt"["p"[#2,Blank[]],NonPositive]]&@@@Transpose[{List@@Rest@sec,inds}])/.{"pt"->PatternTest,"p"->Pattern})(*/lhs*):>Expand[#]&[Times@@(Toj[b2,matr.Append[Ds@b2,(*\:0415\:0434\:0438\:043d\:0438\:0446\:0430*)j[b2,Sequence@@ConstantArray[0,Length@ds1]]]]^-inds)];
 AppendTo[empd,sec->First@#];
 Throw[Null]]]/@sol
-,{k,Length@dmatr}])&/@Cases[us2,{_,First@pnf,_},1]
+,{k,Length@dmatr}])&/@Cases[us2,{_,First@pnf,_}]
 ](*/after 17.06.2014*)
 ]/@nzs1,
 TableForm[{"Searching for mappings",
