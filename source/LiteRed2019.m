@@ -208,7 +208,8 @@ FactorizeFP;FactorizejSector;
 PolyNForm;
 PolySignature;
 PolySignaturePermutations;
-PolyMapSignature;
+FromPolySignature;
+FromPolySignaturePermutation;
 
 
 NamingFunction;
@@ -3459,21 +3460,10 @@ Function@@{gp/.Thread[ds->Array[Slot,Length@ds]]}
 
 PolySignature::usage="PolySignature[\!\(\*
 StyleBox[\"poly\", \"TI\"]\),\!\(\*
-StyleBox[\"vars\", \"TI\"]\)] gives an invariant of the polynomial which does not change at any permutation of its variables.\nThis invariant has the form of the list: {\!\(\*
-StyleBox[\"coefs\", \"TI\"]\),{\!\(\*
-StyleBox[\"ind1\", \"TI\"]\)\!\(\*
-StyleBox[\",\", \"TI\"]\)\!\(\*
-StyleBox[\"ind2\", \"TI\"]\)\[Ellipsis]},\!\(\*
-StyleBox[\"b\", \"TI\"]\)}.\nFirst parameter \!\(\*
-StyleBox[\"coefs\", \"TI\"]\) is a list of coefficients. Each \!\(\*
-StyleBox[\"ind1\", \"TI\"]\)\!\(\*
-StyleBox[\",\", \"TI\"]\)\!\(\*
-StyleBox[\"ind2\", \"TI\"]\)\!\(\*
-StyleBox[\",\", \"TI\"]\)\!\(\*
-StyleBox[\"\[Ellipsis]\", \"TI\"]\) unambiguously describes the power of one variable in each monomial. The list of these powers can be obtained as IntegerDigits[\!\(\*
-StyleBox[\"ind\", \"TI\"]\),\!\(\*
-StyleBox[\"b\", \"TI\"]\),Length@\!\(\*
-StyleBox[\"coefs\", \"TI\"]\)].";
+StyleBox[\"vars\", \"TI\"]\)] gives an invariant of the polynomial which does not change at any permutation of its variables.\nThe format of the output is the same as that of CoefficientRules[\!\(\*
+StyleBox[\"poly\", \"TI\"]\),\!\(\*
+StyleBox[\"vars\", \"TI\"]\)], except that it is universal for any permutation of \!\(\*
+StyleBox[\"vars\", \"TI\"]\).";
 
 
 PolySignature[0,vars_]={{},{},-\[Infinity]}
@@ -4716,6 +4706,7 @@ permutations[{{}...}]:={{}};
 If[FindLibrary["APtsort"]=!=$Failed,matrixSP=LibraryFunctionLoad["APtsort", "tableSortingPermutationsMI",{{Integer, 2},True|False},{Integer, 2}(*Integer*)];
 Print["Found \"APtsort\" library. "]
 ];
+matrixSP=.;
 
 
 Options[polyNF]={Monitor->False};
@@ -4731,16 +4722,17 @@ r=Length@t;
 pp=TakeDrop[#,r]&/@matrixSP[t,True];
 (*Calculate signature*)
 sig=Transpose[t[[pp[[1,1]],pp[[1,2]]]]];
-sig={Replace[First[sig],(Reverse/@ss),{1}],FromDigits[Reverse[#],b]&/@Rest[sig],b};
-{sig,vars[[-1+Rest@Last@#]]&/@pp}
+(*sig={Replace[First[sig],(Reverse/@ss),{1}],FromDigits[#,b]&/@Rest[sig],b};*)
+sig=Sort@Thread[Transpose[Rest[sig]]->Replace[First[sig],(Reverse/@ss),{1}]];
+{sig,Sort[vars[[-1+Rest@Last@#]]&/@pp]}
 ],
 polyNF[p_,vars_List]:=Module[
 {cand,coefs,candn,nt,b,crit,n,k,i,c,c1,fc,t,rfc,lfc,vt,vt1,vt2,ct},
 b=Max[Exponent[p,vars]]+1;(*\:0431\:0430\:0437\:0430 \:0434\:043b\:044f \:043a\:043e\:0434\:0438\:0440\:043e\:0432\:0430\:043d\:0438\:044f*)
 cand=CoefficientRules[p,vars];nt=Length@cand;
-crit=Function[x,{-Plus@@(First@x^#)&/@Range[b-1],Last@x}];
+crit=Function[x,Last@x(*{-Plus@@(First@x^#)&/@Range[b-1],Last@x}*)];
 (*\:043f\:0435\:0440\:0432\:0438\:0447\:043d\:044b\:0439 \:043a\:0440\:0438\:0442\:0435\:0440\:0438\:0439 \[LongDash] {{\:0441\:0443\:043c\:043c\:0430 \:0441\:0442\:0435\:043f\:0435\:043d\:0435\:0439,\:0441\:0443\:043c\:043c\:0430 \:043a\:0432\:0430\:0434\:0440\:0430\:0442\:043e\:0432 \:0441\:0442\:0435\:043f\:0435\:043d\:0435\:0439, \:0438 \:0442.\:0434.},\:043a\:043e\:044d\:0444\:0444\:0438\:0446\:0438\:0435\:043d\:0442}*)
-cand=SplitBy[SortBy[cand,crit],crit];
+cand=SplitBy[Reverse@SortBy[cand,crit],crit];
 coefs=Flatten@cand/.Rule->(#2&);
 cand=cand/.Rule->(#1&);
 vt=0&/@vars;(*\:0442\:0438\:043f\:044b \:043f\:0435\:0440\:0435\:043c\:0435\:043d\:043d\:044b\:0445, \:0438\:043d\:0438\:0446\:0438\:0430\:043b\:0438\:0437\:0438\:0440\:043e\:0432\:0430\:043d\:043d\:044b\:0435 \:0432 \:043d\:043e\:043b\:044c, \:0442.\:0435. \:0441\:043d\:0430\:0447\:0430\:043b\:0430 \:0432\:0441\:0435 \:043f\:0435\:0440\:0435\:043c\:0435\:043d\:043d\:044b\:0435 \:0440\:0430\:0432\:043d\:044b*)
@@ -4762,7 +4754,8 @@ vt=vt2;candn={ReplacePart[c,{1:>Replace[Delete[fc,i],{}->Sequence[]],-1->vt1}]},
 ,cand];
 cand=candn
 ,{n,nt}];
-{{coefs,vt,b},Reverse[vars[[Ordering[Last@#]]]]&/@cand}
+(*{{coefs,vt,b},Reverse[vars[[Ordering[Last@#]]]]&/@cand}*)
+{Sort@Thread[Transpose[IntegerDigits[#,b,nt]&/@vt]->coefs],Sort[Reverse[vars[[Ordering[Last@#]]]]&/@cand]}
 ];]
 
 
