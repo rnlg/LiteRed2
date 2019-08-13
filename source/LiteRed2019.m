@@ -98,6 +98,7 @@ jSubsectors;
 
 jsSignature;
 jsSignaturePermutations;
+jSignature;
 
 
 ToAB;FromAB;FromTildeAB;AtoLeft;A;B;
@@ -208,8 +209,8 @@ FactorizeFP;FactorizejSector;
 PolyNForm;
 PolySignature;
 PolySignaturePermutations;
-FromPolySignature;
-FromPolySignaturePermutation;
+(*FromPolySignature;
+FromPolySignaturePermutation;*)
 
 
 NamingFunction;
@@ -1119,7 +1120,7 @@ jsSignature[js[nm_,inds:(0|1)...]]:=jsSignature[nm,inds];
 jsSignature[nm_,inds:(0|1)...]:=Module[
 {U,F,xs,x0},
 {U,F,xs}=FeynParUF[js[nm,inds],Function->False];
-PolySignature[U+F+x0*Total[Pick[xs,Pick[CutDs[nm],{inds},1],1]],Append[xs,x0]]
+PolySignature[{U+F,xs.Pick[CutDs[nm],{inds},1]},Append[xs,x0]]
 ]
 
 
@@ -1149,6 +1150,18 @@ jsSignaturePermutations[ds_List,ls_List]:=Module[
 {U,F,xs},
 {U,F,xs}=FeynParUF[ds,ls,Function->False];
 PolySignaturePermutations[U+F,xs]
+]
+
+
+jSignature::usage="jSignature[j[\!\(\*
+StyleBox[\"basis\", \"TI\"]\),1,0,\!\(\*
+StyleBox[\"...\", \"TI\"]\)]] returns unique signature for the master integral. Two masters are equal if they have the same signature."
+
+
+jSignature[j[nm_,ii__Integer]]:=Module[{U,F,cds,xs},
+{U,F,xs}=FeynParUF[Pick[Ds[nm],#=!=0&/@{ii}],LMs[nm]];
+cds=Pick[CutDs[nm],#=!=0&/@{ii}];
+PolySignature[{U+F,xs.cds,xs.DeleteCases[{ii},0]},xs]
 ]
 
 
@@ -3466,10 +3479,14 @@ StyleBox[\"vars\", \"TI\"]\)], except that it is universal for any permutation o
 StyleBox[\"vars\", \"TI\"]\).";
 
 
-PolySignature[0,vars_]={{},{},-\[Infinity]}
-
-
 PolySignature[poly_,vars_]:=First@polyNF[poly,vars];
+
+
+PolySignature[polys_List,vars_]:=Module[{c,cs,poly},
+cs=Array[c,{Length@polys}];
+poly=Collect[cs.polys,vars,Function[a,c@@(Coefficient[a,#]&/@cs)]];
+PolySignature[poly,vars]/.c->List
+]
 
 
 PolySignaturePermutations::usage="PolySignaturePermutations[\!\(\*
@@ -3479,10 +3496,14 @@ StyleBox[\"signature\", \"TI\"]\),\!\(\*
 StyleBox[\"permutations\", \"TI\"]\)}. See ?PolySignature for the explanation of the first element. Second element gives permutations of the variables which leave polynomial invariant."
 
 
-PolySignaturePermutations[0,vars_]:=ReplacePart[polyNF[1,vars],1-> {{},{},-\[Infinity]}]
-
-
 PolySignaturePermutations[poly_,vars_]:=polyNF[poly,vars]/.Thread[vars->Range[Length@vars]];
+
+
+PolySignaturePermutations[polys_List,vars_]:=Module[{c,cs,poly},
+cs=Array[c,{Length@polys}];
+poly=Collect[cs.polys,vars,Function[a,c@@(Coefficient[a,#]&/@cs)]];
+PolySignaturePermutations[poly,vars]/.c->List
+]
 
 
 PolyNForm::usage="PolyNForm[\!\(\*
@@ -4711,6 +4732,8 @@ matrixSP=.;
 
 Options[polyNF]={Monitor->False};
 polyNF[p_]:=polyNF[p,Variables[p]];
+polyNF[0,vars_List]/;FreeQ[p,Alternatives@@vars]:={{},Permutations[vars]}
+polyNF[p_,vars_List]/;FreeQ[p,Alternatives@@vars]:={{0&/@vars->p},Permutations[vars]}
 If[ValueQ[matrixSP],
 polyNF[p_,vars_List]:=Module[
 {t,b,ss,r,c=Length@vars,pp,sig},
