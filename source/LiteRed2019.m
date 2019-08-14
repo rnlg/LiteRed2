@@ -1159,7 +1159,7 @@ StyleBox[\"...\", \"TI\"]\)]] returns unique signature for the master integral. 
 
 
 jSignature[j[nm_,ii__Integer]]:=Module[{U,F,cds,xs},
-{U,F,xs}=FeynParUF[Pick[Ds[nm],#=!=0&/@{ii}],LMs[nm]];
+{U,F,xs}=FeynParUF[js[nm,Sequence@@Replace[{ii},Except[0]->1,{1}]],Function->False];
 cds=Pick[CutDs[nm],#=!=0&/@{ii}];
 PolySignature[{U+F,xs.cds,xs.DeleteCases[{ii},0]},xs]
 ]
@@ -4724,62 +4724,45 @@ permutations[set_List]:=Module[{h},Flatten[Outer[h@@Join[##]&,##,1]&@@Permutatio
 permutations[{{}...}]:={{}};
 
 
-If[FindLibrary["APtsort"]=!=$Failed,matrixSP=LibraryFunctionLoad["APtsort", "tableSortingPermutationsMI",{{Integer, 2},True|False},{Integer, 2}(*Integer*)];
-Print["Found \"APtsort\" library. "]
+If[False&&FindLibrary["APtsort"]=!=$Failed,tsp=LibraryFunctionLoad["APtsort", "tableSortingPermutationsMI",{{Integer, 2},True|False},{Integer, 2}(*Integer*)];
+tableSortingPermutations[matr_?MatrixQ,fl:(True|False)]:=((*WriteString["stdout","C"];*)TakeDrop[#,Length@matr]&/@tsp[matr,fl]);
+Print["Found \"APtsort\" library. "],
+SplitSortBy[list_,f_]:=Map[First,SplitBy[SortBy[{#,f@#}&/@list,Last],Last],{2}];
+tableSortingPermutations[matr_?MatrixQ,fl:(True|False)]:=Module[{cands,nt,nv,d,rlfl,t1,t2},
+(*WriteString["stdout","M"];*)
+{nt,nv}=Dimensions[matr];
+(*ToDo: special cases*)
+rlfl=Function[{lst,d},{t1,t2}=TakeDrop[lst,d];t2=NestList[RotateLeft,t2,Length[t2]-1];Join[t1,#]&/@t2];
+cands={Range[nv]};(*cands is always a list of cols(=vars) permutations*)
+Do[
+(*Generate new cands*)
+cands=Flatten[(#&/@rlfl[#,d-1])&/@cands,1];
+(*select only best ones*)
+cands=Last[SplitSortBy[cands,Reverse@Sort[matr[[All,Take[#,d]]]]&]],
+{d,1+Boole[fl],nv}];
+{Reverse@Ordering[matr[[All,#]]],#}&/@Sort[cands]
+]
 ];
-matrixSP=.;
 
 
 Options[polyNF]={Monitor->False};
 polyNF[p_]:=polyNF[p,Variables[p]];
-polyNF[0,vars_List]/;FreeQ[p,Alternatives@@vars]:={{},Permutations[vars]}
+polyNF[0,vars_List]:={{},Permutations[vars]}
 polyNF[p_,vars_List]/;FreeQ[p,Alternatives@@vars]:={{0&/@vars->p},Permutations[vars]}
-If[ValueQ[matrixSP],
 polyNF[p_,vars_List]:=Module[
-{t,b,ss,r,c=Length@vars,pp,sig},
-b=Max[Exponent[p,vars]]+1;(*coding base*)
+{t,ss,r,c=Length@vars,pp,sig},
 t=Transpose[List@@@CoefficientRules[p,vars]];
 ss=MapIndexed[#->First@#2&,Union[Last@t]];
 t=MapThread[Prepend,{First@t,Replace[Last@t,ss,{1}]}](*table constructed*);
 r=Length@t;
-pp=TakeDrop[#,r]&/@matrixSP[t,True];
+(*pp=TakeDrop[#,r]&/@matrixSP[t,True];*)
+pp=tableSortingPermutations[t,True];
 (*Calculate signature*)
 sig=Transpose[t[[pp[[1,1]],pp[[1,2]]]]];
 (*sig={Replace[First[sig],(Reverse/@ss),{1}],FromDigits[#,b]&/@Rest[sig],b};*)
 sig=Sort@Thread[Transpose[Rest[sig]]->Replace[First[sig],(Reverse/@ss),{1}]];
 {sig,Sort[vars[[-1+Rest@Last@#]]&/@pp]}
-],
-polyNF[p_,vars_List]:=Module[
-{cand,coefs,candn,nt,b,crit,n,k,i,c,c1,fc,t,rfc,lfc,vt,vt1,vt2,ct},
-b=Max[Exponent[p,vars]]+1;(*\:0431\:0430\:0437\:0430 \:0434\:043b\:044f \:043a\:043e\:0434\:0438\:0440\:043e\:0432\:0430\:043d\:0438\:044f*)
-cand=CoefficientRules[p,vars];nt=Length@cand;
-crit=Function[x,Last@x(*{-Plus@@(First@x^#)&/@Range[b-1],Last@x}*)];
-(*\:043f\:0435\:0440\:0432\:0438\:0447\:043d\:044b\:0439 \:043a\:0440\:0438\:0442\:0435\:0440\:0438\:0439 \[LongDash] {{\:0441\:0443\:043c\:043c\:0430 \:0441\:0442\:0435\:043f\:0435\:043d\:0435\:0439,\:0441\:0443\:043c\:043c\:0430 \:043a\:0432\:0430\:0434\:0440\:0430\:0442\:043e\:0432 \:0441\:0442\:0435\:043f\:0435\:043d\:0435\:0439, \:0438 \:0442.\:0434.},\:043a\:043e\:044d\:0444\:0444\:0438\:0446\:0438\:0435\:043d\:0442}*)
-cand=SplitBy[Reverse@SortBy[cand,crit],crit];
-coefs=Flatten@cand/.Rule->(#2&);
-cand=cand/.Rule->(#1&);
-vt=0&/@vars;(*\:0442\:0438\:043f\:044b \:043f\:0435\:0440\:0435\:043c\:0435\:043d\:043d\:044b\:0445, \:0438\:043d\:0438\:0446\:0438\:0430\:043b\:0438\:0437\:0438\:0440\:043e\:0432\:0430\:043d\:043d\:044b\:0435 \:0432 \:043d\:043e\:043b\:044c, \:0442.\:0435. \:0441\:043d\:0430\:0447\:0430\:043b\:0430 \:0432\:0441\:0435 \:043f\:0435\:0440\:0435\:043c\:0435\:043d\:043d\:044b\:0435 \:0440\:0430\:0432\:043d\:044b*)
-cand={Append[cand,vt]};(*\:041f\:043e\:0441\:043b\:0435\:0434\:043d\:0438\:0439 \:0430\:0440\:0433\:0443\:043c\:0435\:043d\:0442 \[LongDash] \:0441\:043f\:0438\:0441\:043e\:043a \:0442\:0438\:043f\:043e\:0432*)(*\:0441 \:044d\:0442\:043e\:0433\:043e \:043c\:043e\:043c\:0435\:043d\:0442\:0430 \:043a\:0430\:0436\:0434\:044b\:0439 \:0438\:0437 \:043a\:0430\:043d\:0434\:0438\:0434\:0430\:0442\:043e\:0432 \[LongDash] \:0441\:043f\:0438\:0441\:043e\:043a \:043c\:043e\:043d\:043e\:043c\:043e\:0432, \:0440\:0430\:0437\:0431\:0438\:0442\:044b\:0439 \:043f\:043e \:043a\:0440\:0438\:0442\:0435\:0440\:0438\:044e \:0438  \:0434\:043e\:043f\:043e\:043b\:043d\:0435\:043d\:043d\:044b\:0439 \:0441\:043f\:0438\:0441\:043a\:043e\:043c \:0442\:0438\:043f\:043e\:0432*)
-Do[
-vt=b*(vt+1);
-candn={};
-Scan[
-Function[c,
-fc=First@c;lfc=Length@fc;
-Do[
-vt1=b*Last@c+fc[[i]];
-vt2=Reverse@Sort@vt1;
-If[!OrderedQ[{vt,vt2}],
-vt=vt2;candn={ReplacePart[c,{1:>Replace[Delete[fc,i],{}->Sequence[]],-1->vt1}]},If[vt===vt2,AppendTo[candn,ReplacePart[c,{1:>Replace[Delete[fc,i],{}->Sequence[]],-1->vt1}]]]
 ]
-,{i,lfc}];
-]
-,cand];
-cand=candn
-,{n,nt}];
-(*{{coefs,vt,b},Reverse[vars[[Ordering[Last@#]]]]&/@cand}*)
-{Sort@Thread[Transpose[IntegerDigits[#,b,nt]&/@vt]->coefs],Sort[Reverse[vars[[Ordering[Last@#]]]]&/@cand]}
-];]
 
 
 polyMapToSig[p_,vars_,{coefs1_List,inds_List,b1_Integer}]:=Module[
