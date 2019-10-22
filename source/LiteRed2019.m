@@ -770,7 +770,7 @@ If[MemberQ[x,"Basis"],tb=True];
 x_:>Message[DiskSave::optx,Save->x]
 }
 ];
-If[!DirectoryQ[dir],CreateDirectory[dir];Message[DiskSave::dir,dir]];
+If[!DirectoryQ[dir],CreateDirectory[dir];(*Modified 16.08.2019*)Print[TemplateApply[DiskSave::dir,dir]](*/Modified 16.08.2019*)];
 If[t=!=Alternatives[],
 (t1=ToString[HoldForm@@(First@#)];t2=Last@MapAt[Hold,#,{2}];
 If[StringMatchQ[t1,t],
@@ -1759,6 +1759,7 @@ indicnop=0,
 indicnopToGo=0,
 indicoutput={},
 indicpb=0,
+indicstime,
 moni,
 misFound={},
 numeric,
@@ -1787,15 +1788,15 @@ constr=MapThread[Replace[#1,{1->#2>=1,0->#2<=0}]&,{corner,indices}];
 If[Not@TrueQ@Not@disksave&&diskreco&&FileExistsQ[disksave<>"/"<>file],jRulesF=Get[disksave<>"/"<>file];If[jRulesF==="reserved",LiteRedPrint["The sector ",jsect," is likely being solved by another kernel. Execute SolvejSector["<>ToString[jsect]<>",DiskRecover\[Rule]True] later to update MIs["<>ToString[nm]<>"]."];Return[Indeterminate],misFound=j[nm,##]&@@indices/.#&/@{ToRules[LogicalExpand@Reduce[Not[Or@@jRulesF[[All,1,2]]]&&And@@constr(*(*Deleted 25.03.2018*)sectcond(*/Deleted 25.03.2018*)*),Integers]]};If[!FreeQ[misFound,Alternatives@@indices],Message[SolvejSector::leak,misFound]]];
 If[disksave===BasisDirectory[nm],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[BasisDirectory["<>ToString[nm]<>"]<>\"/"<>file<>"\"]"],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[\""<>disksave<>"/"<>file<>"\"]"]];LiteRedPrint["Sector ",jsect," is recovered from file"];,
 (**)
-onmis=Replace[onmis,{Automatic:>If[Contexts["Mint`"]=!={},If[IntegerQ[#],#,0]&@Symbol["Mint`CountMIs"][jsect,Symmetric->useSR],0],f_Function:>f@@jsect}];
-tcf[LiteRedPrint["Sector ",jsect];If[Not[TrueQ@Not@disksave||FileExistsQ[disksave<>"/"<>file]],If[!DirectoryQ[disksave],CreateDirectory[disksave];Message[DiskSave::dir,disksave]];Put["reserved",disksave<>"/"<>file];reserved=True];(*ptrnrule\[LongDash]\:0437\:0430\:043c\:0435\:043d\:0430 indices \:043d\:0430 \:043f\:0430\:0442\:0442\:0435\:0440\:043d\:044b*)
+onmis=Replace[onmis,{Automatic:>If[Contexts["Mint`"]=!={},If[IntegerQ[#],#,-1]&@Symbol["Mint`CountMIs"][jsect,Symmetric->useSR],0],f_Function:>f@@jsect}];
+tcf[LiteRedPrint["Sector ",jsect];If[Not[TrueQ@Not@disksave||FileExistsQ[disksave<>"/"<>file]],If[!DirectoryQ[disksave],CreateDirectory[disksave];Message[DiskSave::dir,disksave]];Put["reserved",disksave<>"/"<>file];reserved=True];(*ptrnrule\[LongDash]replace indices with patterns*)
 gatherRules[x_]:=Flatten[SortBy[Sort[#,(Last@#1)>(Last@#2)&]&/@Gather[{#,j[nm,##]&@@indices/.#}&/@x,MatchQ[Expand[List@@Last@#1-List@@Last@#2],{__Integer}]&(*Gather contiguous*)],{
 Length@First@First@#,(*# of fixed parameters*)
 Count[Last@First@#,_Integer],(*# of numeric indices*)
 Flatten@Position[Take[jComplexity[Last@First@#],-nds],Except[_Integer],{1}]
 (*position of symbolic indices*)
 }&][[All,All,1]],1];
-(*\:0413\:043e\:0442\:043e\:0432\:0438\:043c\:0441\:044f \:043a \:0440\:0435\:0448\:0435\:043d\:0438\:044e \:0443\:0440\:0430\:0432\:043d\:0435\:043d\:0438\:0439 \:0432 \:0434\:0430\:043d\:043d\:043e\:043c \:0441\:0435\:043a\:0442\:043e\:0440\:0435*)
+(*Prepare to solution*)
 jSector[nm]=jsect;jRulesF={};
 parameters=Complement[Variables[Last@Reap[Collect[ids,_j,Sow]]],indices];
 If[TrueQ[OptionValue[jGraph]],AppendTo[indicoutput,LiteRedPrintTemporary[GraphPlot[jGraph[jsect],ImageSize->Tiny]]]];
@@ -1811,15 +1812,16 @@ Or@@exprl1];cf[x_Or]:=cf/@x;cf[x_]:=Module[{Cs=Union@Cases[{x},_C,\[Infinity]](*
 noRules={{}};
 jRulesF={};
 indicnr=Length[jRulesF];
+indicstime=AbsoluteTime[];
 (*LOOP OVER noRules*)
-If[$LiteRedMonitor,moni=PrintTemporary[TableForm[{Overlay[{ProgressIndicator[Dynamic[indicpb],{0,nds+1/2}],Dynamic[ToString[indicnop]<>"\[Rule]"<>ToString[indicnopToGo]]},Alignment->Center],Dynamic[ToString[indicnr]<>" point: "<>ToString[startp]]}]]];
+If[$LiteRedMonitor,moni=PrintTemporary[TableForm[{{Dynamic["Spent "<>ToString[Round[AbsoluteTime[]-indicstime]]<>" seconds.",UpdateInterval->1]},Dynamic[Overlay[{ProgressIndicator[indicpb,{0,10+1/2}],ToString[indicnop]<>"\[Rule]"<>ToString[indicnopToGo]},Alignment->Center]],Dynamic[ToString[indicnr]<>" point: "<>ToString[startp]]}]]];
 While[
 noRules=!={},
 (*Consider first case*)
 case=First@noRules;(*case will be a list*)
 noRules=Rest@noRules;
 startp=indices/.case;(*startp will be a list*)
-indicpb=Length@case;(*proof this*)
+If[indicpb<Length@case,indicpb=Length@case;LiteRedPrintTemporary[ToString[nds-indicpb]<>" symbolic indices after "<>ToString[Round[AbsoluteTime[]-indicstime]]<>" seconds."]];
 numeric=FreeQ[startp,Alternatives@@indices];
 found=False;
 If[!numeric||Length[misFound]+Length[noRules]>=onmis,(* check if the case falls into the more general *)If[(fr=Select[rulesFound,TrueQ[First[#]/.case]&&Not[TrueQ[Simplify[Last[#]/.case]]]&,1])=!={},(* better sorting desired *)noRules=gatherRules[expandRules[{ToRules@smartReduce[LogicalExpand[fromRules[noRules]||fromRules[{case}]&&fr[[1,2]]]]}]];Continue[]];
@@ -1829,7 +1831,6 @@ pat1=(j[nm,##]&@@(Pattern[#,Blank[]]&/@indices))/;Evaluate[fromRules[{case}]];
 pos=Flatten[Position[indices,Alternatives@@Complement[indices,First/@case],1]];
 (*dbase={0\[Rule]0};*)
 If[usefer,finitdb,initdb][dbase,jsect,Join[Variables[startp],parameters]];
-
 depth=0;
 While[depth<=searchDepth,
 (*Construct equations*)
@@ -1852,13 +1853,13 @@ AppendTo[rulesFound,{fromRules[{case}],rules2}];
 If[usefer,fcleandb,cleandb][dbase];
 (*Modified 01.03.2018*)(*depth=searchDepth+1;*)Break[](*/Modified 01.03.2018*),
 PutAppend[jRules1,BasisDirectory[nm]<>StringReplace[ToString[jsect],"js["->"/jBadRules["]];
-LiteRedPrint[Style["Was not able to construct applicability condition. Offending rule is saved in "<>StringReplace[ToString[jsect],"js["->"jBadRules["],Tiny],"\n",Style["Excluding ",Tiny],Style[fr[[1]],Tiny]];
+LiteRedPrintTemporary[Style["Was not able to construct applicability condition for "<>ToString[fr[[1]]]<>"\[Ellipsis]",Tiny]];
 except=except|fr[[1]];
 Continue[]
 ]
 ];
 If[found,Break[]];
-If[++depth>searchDepth&&depth<=maxDepth&&!numeric,searchDepth=depth;AppendTo[indicoutput,LiteRedPrintTemporary["Increasing search depth to "<>ToString[searchDepth]]]]
+If[++depth>searchDepth&&depth<=maxDepth&&!numeric,searchDepth=depth;AppendTo[indicoutput,LiteRedPrintTemporary[Style["Increasing search depth to "<>ToString[searchDepth],Tiny]]]]
 ];
 ];
 If[!found,
