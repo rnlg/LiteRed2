@@ -954,7 +954,8 @@ MakeOrderMatrix[]:=Print[Style["MakeOrderMatrix[{0, 1, \[Ellipsis]}, {spec1, spe
 
 
 MakeOrderMatrix[js[_,ns:(0|1)...],spec___]:=MakeOrderMatrix[{ns},spec]
-MakeOrderMatrix[sec:{(0|1)...},spec:_List:{"np","ns","ds"}]:=Module[{
+MakeOrderMatrix[sec:{(0|1)...}]:=MakeOrderMatrix[sec,{"np","ns","ds"}]
+MakeOrderMatrix[sec:{(0|1)...},spec:_List]:=Module[{
 l=Length[sec],
 m={2sec-1}(*First criterion is total power, obligatory!*),
 unfold,
@@ -1728,6 +1729,7 @@ CheckZeroAlways->True,
 SimplifyFunction->Factor1,
 SimplifyAlways->True,
 jGraph->False,
+Sharpen->True,
 GeneratedCell->True,
 UseFermat->False
 };
@@ -1769,7 +1771,7 @@ rulesFound={},
 parameters,
 eqs,neqs,sf,
 dbase(*jRulesDB*),
-ids,case,rules2,startp,
+ids,sharp=If[TrueQ[OptionValue[Sharpen]],sharpen,Identity],case,rules2,startp,
 pat1,except,usefer,
 ptrnrule,jRules1,jRulesF,pos,searchDepth,useSR,indicnr,fr,disksave,diskreco,onmis,tc,tcf,sjopts,whenBad,smartReduce,cf,fromRules,expandRules,found,depth,maxDepth},
 CheckAbort[
@@ -1802,7 +1804,7 @@ parameters=Complement[Variables[Last@Reap[Collect[ids,_j,Sow]]],indices];
 If[TrueQ[OptionValue[jGraph]],AppendTo[indicoutput,LiteRedPrintTemporary[GraphPlot[jGraph[jsect],ImageSize->Tiny]]]];
 AppendTo[indicoutput,LiteRedPrintTemporary["Parameters "<>ToString[parameters]<>" are assumed to be independent."]];
 If[onmis>=0,AppendTo[indicoutput,LiteRedPrintTemporary["Expecting "<>ToString[onmis]<>" masters."]]];
-ids=Function@@{sharpen[ids]/.MapIndexed[#->Slot@@#2&,indices]};
+ids=Function@@{sharp[ids]/.MapIndexed[#->Slot@@#2&,indices]};
 (*whenBad*)whenBad[expr_]:=Module[{jl=Cases[CollectjList[expr],{tt_j,_}(*Added 31.05.2016*)(*/;!jSector[tt]<jsect(*
 Definitely erroneous attempt: in particular dropped terms may have zeros in the denominators*)*)(*/Added 31.05.2016*)],dconds,nconds},dconds=LogicalExpand[Or@@(And@@Thread[0==(Last/@CoefficientRules[#,parameters])(*(*Deleted 05.03.2018*)Flatten[{CoefficientList[#,parameters]}](*/Deleted 05.03.2018*)*)]&/@Union@@((First/@FactorList[#])&/@Denominator/@Last/@jl))];nconds={#2,smartReduce[Or@@Thread[Pick[Rest[List@@#1],Rest[List@@jsect],0]>=1]]}&@@@jl;If[MemberQ[nconds,{_,True}],Return[True]];nconds=Or@@Flatten@Cases[nconds,{b_,a:Except[False]}:>Cases[Replace[{a},Or->Sequence,{2},Heads->True],x_/;0=!=Expand[Numerator[b]/.ToRules[x]]]];(*LogicalExpand@*)smartReduce[LogicalExpand[dconds||nconds]]];(*/whenBad*)
 (*smartReduce*)
