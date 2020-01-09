@@ -76,6 +76,7 @@ Ds;NDs;
 LMs;
 EMs;
 SPs;
+Parameters;
 MIs;
 BasisDirectory;
 Definitions;
@@ -134,8 +135,9 @@ SolvejSector;
 	CheckZeroFunction;
 	NMIs;
 	RRs;
+	NoRules;
 	MaxDepth;
-	UseFermat;
+	(*UseFermat;*)
 BloodhoundSearch;
 
 
@@ -425,7 +427,7 @@ If[m=!={},m=Numerator@Factor@LFDistribute[m.(ns-ddens)]];
 nm/:Relations[nm]=Function[#1,#2]&[ns,m];
 LiteRedPrint[StringJoin@@Riffle[Flatten[{"Found relations",ToString/@Thread[m==0]}],"\n    "]];
 (*/linear relations*)
-Toj[nm]^=Thread[sps-> Most[PseudoInverse[Append[Transpose[Append[Transpose[Outer[Coefficient,ddens, sps]],ddens/.Thread[sps->0]]],PadLeft[{1},Length@sps+1]]]].(j[nm,##]&@@@Append[-IdentityMatrix[dim],ConstantArray[0,dim]])];
+Toj[nm]^=Thread[sps-> Most[ComplexExpand@PseudoInverse[Append[Transpose[Append[Transpose[Outer[Coefficient,ddens, sps]],ddens/.Thread[sps->0]]],PadLeft[{1},Length@sps+1]]]].(j[nm,##]&@@@Append[-IdentityMatrix[dim],ConstantArray[0,dim]])];
 nm /: Ds[nm] = dens;
 nm /: NDs[nm] = dim;
 nm /: SPs[nm] = sps;
@@ -522,6 +524,9 @@ StyleBox[\"basis\", \"TI\"]\).";
 EMs::usage="EMs[\!\(\*
 StyleBox[\"basis\", \"TI\"]\)] gives a list of external momenta in \!\(\*
 StyleBox[\"basis\", \"TI\"]\).";
+Parameters::usage="Parameters[\!\(\*
+StyleBox[\"basis\", \"TI\"]\)] gives a list of all parameters of \!\(\*
+StyleBox[\"basis\", \"TI\"]\).";
 MIs::usage="MIs[\!\(\*
 StyleBox[\"basis\", \"TI\"]\)] gives a list of master integrals of the \!\(\*
 StyleBox[\"basis\", \"TI\"]\) so far revealed.";
@@ -554,7 +559,7 @@ NewDsBasis::ovrw="Warning: definitions for `1` has been found. They may interfer
 NewDsBasis[nm_Symbol, ds : {(_?VecQ | _?NumQ) ..}, lms : {__?VecVarQ}, 
   OptionsPattern[]] := Module[{
 d=MetricTensor[],
- dens, ddens,
+ dens, ddens,pars,
 dim, ems, sps, toj,ns,nums,l,
 gi,as,fs,fes,ss,save,ps},
 {gi,as,fs,fes,ss,save,ps}={OptionValue[GenerateIBP],OptionValue[AnalyzeSectors],OptionValue[FindSymmetries],OptionValue[FindExtSymmetries],OptionValue[SolvejSector],OptionValue[Directory],OptionValue[PowerShifts]};
@@ -567,6 +572,7 @@ dens = Replace[ds,x_?VecQ :> sp[x, x], {1}];
 ems = Complement[Union@Cases[dens, _?VecVarQ, Infinity], lms];
  sps = Union @@ Outer[sp, lms, Join[lms, ems]];
 ddens=Expand@LFDistribute[dens,sp];
+pars=Variables[{Cases[Variables[ddens],_?(FreeQ[#,Alternatives@@lms]&)], Outer[sp, ems, ems],{d}}];
 dim=Length@dens;ns=Length@sps-dim;
 (*add numerators*)
 If[ns<0,Message[NewDsBasis::notb]; Abort[]];
@@ -589,6 +595,7 @@ nm /: SPs[nm] = sps;
 nm /: LMs[nm] = lms;
 nm /: EMs[nm] = ems;
 nm/:Toj[nm]=toj;
+nm/:Parameters[nm]=pars;
 jSector[nm]=js@@Prepend[ConstantArray[1,dim],nm];
 MIs[nm]^={};
 (*Doubtful*)
@@ -625,7 +632,7 @@ MappedSectors[nm]^={};
 SectorsMappings[nm]^={};
 ExtMappedSectors[nm]^={};
 ExtSectorsMappings[nm]^={};
-LiteRedPrint["Valid basis."<>(If[save=!=False," The definitions of the basis will be saved in \""<>save<>"\" directory.",""])<>"\n    Ds[" <> # <>"] \[LongDash] denominators,\n    SPs[" <> # <>"] \[LongDash] scalar products involving loop momenta,\n    LMs[" <> # <>"] \[LongDash] loop momenta,\n    EMs[" <> # <>"] \[LongDash] external momenta,\n    Toj[" <> # <>"] \[LongDash] rules to transform scalar products to denominators,\n    CutDs[" <> # <>"] \[LongDash] flag vector of cut denominators."] &@ToString[nm];
+LiteRedPrint["Valid basis."<>(If[save=!=False," The definitions of the basis will be saved in \""<>save<>"\" directory.",""])<>"\n    Ds[" <> # <>"] \[LongDash] denominators,\n    SPs[" <> # <>"] \[LongDash] scalar products involving loop momenta,\n    LMs[" <> # <>"] \[LongDash] loop momenta,\n    EMs[" <> # <>"] \[LongDash] external momenta,\n    Parameters[" <> # <>"] \[LongDash] parameters (invariants, masses, dimension),\n    Toj[" <> # <>"] \[LongDash] rules to transform scalar products to denominators,\n    CutDs[" <> # <>"] \[LongDash] flag vector of cut denominators."] &@ToString[nm];
 CurrentState[nm,NewDsBasis]=True;
 If[save=!=False,
 BasisDirectory[nm]=save;
@@ -1369,6 +1376,96 @@ IBPLI[nm_]/;ValueQ[IBP[nm]]&&ValueQ[LI[nm]]:=Function@@{Join[First@IBP@nm,First@
 IBPLI[nm_,inds__]:=IBPLI[nm][inds];
 
 
+GenerateFPIBP::usage="GenerateFPIBP[\!\(\*
+StyleBox[\"basis\", \"TI\"]\)] generates IBP identities in parametric representation for unique sectors of the \!\(\*
+StyleBox[\"basis\", \"TI\"]\).\n\
+GenerateFPIBP[js[\!\(\*
+StyleBox[\"basis\", \"TI\"]\),\!\(\*
+StyleBox[\"indices\", \"TI\"]\)]] generates IBP identities in parametric representation for one sector.";
+GenerateFPIBP::us="Calling GenerateFPIBP[`1`] requires UniqueSectors[`1`]";
+GenerateFPIBP::failed="Failed to construct syzygy for the sector `1`";
+
+
+Options[GenerateFPIBP]={DiskRecover->True,MonomialOrder->Automatic,TimeConstrained->False,
+Append->{}(*extra variables (for speed, some parameters can be added here as vars)*),
+Throw->1(*how many times to try with different orderings (assuming MonomialOrder\[Rule]Automatic,TimeConstrained\[Rule]n)*)};
+
+
+GenerateFPIBP[nm_Symbol,opts:OptionsPattern[]]:=GenerateFPIBP[#,opts]&/@UniqueSectors[nm];
+
+
+GenerateFPIBP[jsec:js[nm_Symbol,inds:(0|1)..],opts:OptionsPattern[]]:=Module[
+{ffn,fn,
+G,dG,xs,ns,
+L=Length@LMs@nm,\[Nu]=MetricTensor[]/2,
+syz,tsyz,Qk,Q,
+jf,b,f,
+mo=OptionValue[MonomialOrder],
+rcv=OptionValue[DiskRecover],
+attempts=OptionValue[Throw],
+vs=OptionValue[Append],
+tc=OptionValue[TimeConstrained]/.False|None->Infinity
+},
+fn=StringReplacePart[ToString[jsec],"jsFPIBP",{1,2}];
+If[TrueQ[rcv]&&FileExistsQ[BasisDirectory[nm]<>"/"<>fn],
+(nm /: jsFPIBP[nm,inds] := Get[BasisDirectory[nm]<>"/"<>#])&[fn],
+(*Generate*)
+{G,xs}={#1+#2,#3}&@@FeynParUF[jsec,NamingFunction->(Table[Unique["x"],{#}]&),Function->False];
+dG=D[G,#]&/@xs;
+If[mo===Automatic,
+syz=Catch[TimeConstrained[
+LiteRedPrintTemporary["Chose ordering: ",PermutationList[#,Length@xs]];
+Quiet[tsyz=syzygy[Append[dG,G],Join[Permute[xs,#],vs]]];
+If[tsyz=!=$Failed,Throw[tsyz]],tc,$Failed]&/@Prepend[RandomPermutation[Length@xs,attempts-1],Cycles[{}]];$Failed];
+,
+syz=TimeConstrained[syzygy[Append[dG,G],Join[xs,vs],MonomialOrder->mo],tc,$Failed];
+];
+If[syz===$Failed,Message[GenerateFPIBP::failed,js[nm,inds]];Return[$Failed]];
+LiteRedPrintTemporary["Found "<>ToString[Length[syz]]<>" equations"];
+ns=Table[Unique["n"],{Length@xs}];
+b=IdentityMatrix[Length@xs];
+
+Function[ps,jf=ReplacePart[j[nm,inds],Thread[ps->#]]&][Flatten@Position[jsec,1,{1}]];
+f=f[Function[syz,
+Qk=CoefficientRules[syz,xs];Q=Last@Qk;Qk=Most@Qk;
+Plus@@(Flatten@{MapIndexed[Function[{cr,i},(#2*Pochhammer[(L+1)\[Nu]-Plus@@ns,1-Plus@@#1]Times@@Pochhammer[ns,#1](jf[ns+#1-b[[First@i]]]))&@@@cr],Qk],
+(\[Nu]*#2*Pochhammer[(L+1)\[Nu]-Plus@@ns,-Plus@@#1]Times@@Pochhammer[ns,#1](jf[ns+#1]))&@@@Q
+})]/@syz/.Thread[ns->Array[Slot,Length@ns]]]/.f->Function;
+(Put[f, BasisDirectory[nm]<>"/"<>#]; nm /: jsFPIBP[nm, inds] := Get[BasisDirectory[nm]<>"/"<>#])&[fn];Remove/@xs;Remove/@ns;
+]
+LiteRedPrint["Generated IBP identities in parametric representation for "<>ToString[jsec]<>"\n    "<>fn<>" \[LongDash] IBP identities in parametric representation."];
+]
+
+
+todo["GenerateFPIBP: add option DiskSave (as of now, it is always supposed to be true)"];
+
+
+todo["LiteRed`Private`syzygy: implement minbase"];
+
+
+jsFPIBP::usage="jsFPIBP[nm,0,1,\[Ellipsis]] returns a function for the IBP identities in parametric representation in the sector js[nm,0,1,\[Ellipsis]].";
+
+
+FPIBP::usage="FPIBP[\!\(\*
+StyleBox[\"basis\", \"TI\"]\),\!\(\*
+StyleBox[\"indices\", \"TI\"]\)] returns a list of IBPs for the Feynman parametrization. All \!\(\*
+StyleBox[\"indices\", \"TI\"]\) should be nonnegative, otherwise FPIBP returns {}.\n\
+FPIBP[\!\(\*
+StyleBox[\"basis\", \"TI\"]\)][\!\(\*
+StyleBox[\"indices\", \"TI\"]\)]\!\(\*
+StyleBox[\" \", \"TI\"]\)evaluates to the former form.";
+FPIBP::nonum="Numerators are not allowed.";
+
+
+FPIBP[nm_][inds__]:=FPIBP[nm,inds]
+
+
+FPIBP[nm_,inds__]:=Module[{jsec=jSector@j[nm,inds]},
+If[DeleteCases[Pick[{inds},Rest[List@@jsec],0],0]=!={},Message[FPIBP::nonum];Return[{}]];
+(jsFPIBP@@jsec)@@Pick[{inds},Rest[List@@jsec],1]
+]
+
+
 SetAttributes[SmallCircle,{Flat,OneIdentity}];
 SetLinearIn[FreeQ[#,LiteRed`A|LiteRed`B]&,SmallCircle,All];
 Module[{a,b},
@@ -1704,34 +1801,41 @@ StyleBox[\"sector\", \"TI\"]\):js[\[Ellipsis]]] tries to find symbolic rules for
 StyleBox[\"sector\", \"TI\"]\).\nOptions:\n\
     NamingFunction\[Rule]Function[\[Ellipsis]]|Automatic:Automatic, see ?NamingFunction;\n\
     Depth\[Rule]_Integer:2, the Depth of the heuristic search. If the search did not succeeded in reducing the sector to a finite number of integrals, search depth is increased automatically;\n\
-    NMIs\[Rule]n:0, expected number of master integrals. If the number of the integrals left is less or equal to n, the program terminates assuming those integrals are masters, which may save some time.\n\
+    NMIs\[Rule]n:-1, expected number of master integrals. If the number of the integrals left is less or equal to n, the program terminates assuming those integrals are masters, which may save some time.\n\
     Apply\[Rule]True|False:True determines whether to apply found rule at the last stage.\n\
-    SR\[Rule]False|True:True determines whether the symmetry relations should be used on the last step;\n\
     DiskSave\[Rule]True|False|\!\(\*
-StyleBox[\"directory\", \"TI\"]\):False determines whether to save the found rules on the disk.";
+StyleBox[\"directory\", \"TI\"]\):False determines whether to save the found rules on the disk;\n\
+	SR\[Rule]False|True:True determines whether the symmetry relations should be used on the last step;\n\
+    RRs\[Rule]{IBP,LI} is an option for SolvejSector which determines which recurrence relations to use\n\
+	jRules\[Rule]f:({{}}&) determines for which integrals we need rules. f is supposed to be applied to indices, like f@@{n1,n2,....}, and give the .";
 SolvejSector::leak="Discrepancy detected. Reduction is not full: `1`.";
 NMIs::usage="NMIs\[Rule]n is an option for SolvejSector, which determines the minimal number of masters in the sector.";
-RRs::usage="RRs\[Rule]{IBP,LI} is an option for SolvejSector which determines which recurrence relations to use. Note that symmetry relations are automatically used for numeric indices.";
+RRs::usage="RRs\[Rule]{IBP,LI} is an option for SolvejSector which determines which recurrence relations to use.";
 
 
-Options[SolvejSector]={NamingFunction->Automatic,
-Depth->2(*\:043c\:0438\:043d\:0438\:043c\:0430\:043b\:044c\:043d\:0430\:044f \:0433\:043b\:0443\:0431\:0438\:043d\:0430 \:043f\:043e\:0438\:0441\:043a\:0430*),
-MaxDepth->\[Infinity](*\:041c\:0430\:043a\:0441\:0438\:043c\:0430\:043b\:044c\:043d\:0430\:044f \:0433\:043b\:0443\:0431\:0438\:043d\:0430 \:043f\:043e\:0438\:0441\:043a\:0430*),
-RRs->Automatic,(*\:041a\:0430\:043a\:0438\:0435 \:0440\:0435\:043a\:0443\:0440\:0440\:0435\:043d\:0442\:043d\:044b\:0435 \:0441\:043e\:043e\:0442\:043d\:043e\:0448\:0435\:043d\:0438\:044f \:0438\:0441\:043f\:043e\:043b\:044c\:0437\:043e\:0432\:0430\:0442\:044c? Automatic \:0438\:043b\:0438 \:0444\:0443\:043d\:043a\:0446\:0438\:044f*)
-SR->True,(*\:0418\:0441\:043f\:043e\:043b\:044c\:0437\:043e\:0432\:0430\:0442\:044c \:0441\:043e\:043e\:0442\:043d\:043e\:0448\:0435\:043d\:0438\:044f \:0441\:0438\:043c\:043c\:0435\:0442\:0440\:0438\:0438?*)
-NMIs->-1(*\:041e\:0436\:0438\:0434\:0430\:0435\:043c\:043e\:0435 \:0447\:0438\:0441\:043b\:043e \:043c\:0430\:0441\:0442\:0435\:0440-\:0438\:043d\:0442\:0435\:0433\:0440\:0430\:043b\:043e\:0432*),
-DiskSave->True(*\:0421\:043e\:0445\:0440\:0430\:043d\:044f\:0442\:044c \:043d\:0430\:0439\:0434\:0435\:043d\:043d\:044b\:0435 \:043f\:0440\:0430\:0432\:0438\:043b\:0430 \:043d\:0430 \:0434\:0438\:0441\:043a\:0435?*),
-DiskRecover->False(*\:0412\:043e\:0441\:0441\:0442\:0430\:043d\:0430\:0432\:043b\:0438\:0432\:0430\:0442\:044c \:043f\:0440\:0430\:0432\:0438\:043b\:0430 \:0441 \:0434\:0438\:0441\:043a\:0430?*),
-Replace->True(*\:0417\:0430\:043c\:0435\:043d\:044f\:0442\:044c \:0444\:0430\:0439\:043b \:0441 \:043f\:0440\:0430\:0432\:0438\:043b\:0430\:043c\:0438 \:043d\:0430 \:0434\:0438\:0441\:043a\:0435?*),
-TimeConstrained->False,
-CheckZeroFunction->Factor1,
-CheckZeroAlways->True,
-SimplifyFunction->Factor1,
-SimplifyAlways->True,
-jGraph->False,
+Options[SolvejSector]={
+Depth->2(*minimal search depth*),
+MaxDepth->\[Infinity](*maximal search depth*),
+NMIs->-1(*expected number of masters, -1 means elaborate thoroughly*),
+
+RRs->Automatic,(*relations to use, Automatic or _Function*)
+SR->True,(*use symmetries?*)(*as of now, only for numeric indices*)
+jRules->({{}}&),
+
+DiskSave->True(*whether to save rules on the disk?*),
+DiskRecover->False(*whether to recover rules from the disk?*),
+Replace->True(*whether to replace rules on the disk?*),
+TimeConstrained->False (*whether to constrain time, False or number of seconds*),
+CheckZeroFunction->Factor1,CheckZeroAlways->True,SimplifyFunction->Factor1,SimplifyAlways->True,
+
+Fermatica`UseFermat->False,
 Sharpen->True,
+
+
 GeneratedCell->True,
-UseFermat->False
+NamingFunction->Automatic(*index naming*),
+jGraph->False
+
 };
 SolvejSector::parse="Could not parse `1`.";
 SolvejSector::dim="Please, set dimension to be a symbol. Use SetDim[\[Ellipsis]]. Aborting...";
@@ -1745,6 +1849,9 @@ If[MatchQ[res,{__Integer?Positive}],CurrentState[nm,SolvejSector]=True];
 res
 ]
 SolvejSector[sects_List,opts:OptionsPattern[]]:=SolvejSector[#,opts]&/@sects
+
+
+todo["Parameters: make fallback for old-style bases"];
 
 
 SolvejSector[jsect_js,OptionsPattern[]]:=Module[{
@@ -1773,24 +1880,26 @@ eqs,neqs,sf,
 dbase(*jRulesDB*),
 ids,sharp=If[TrueQ[OptionValue[Sharpen]],sharpen,Identity],case,rules2,startp,
 pat1,except,usefer,
-ptrnrule,jRules1,jRulesF,pos,searchDepth,useSR,indicnr,fr,disksave,diskreco,onmis,tc,tcf,sjopts,whenBad,smartReduce,cf,fromRules,expandRules,found,depth,maxDepth},
+ptrnrule,jRules1,jRulesF,pos,searchDepth,useSR,indicnr,fr,disksave,diskreco,onmis,tc,tcf,sjopts,
+whenBad,smartReduce,(*cf,
+fromRules,expandRules,*)found,depth,maxDepth},
 CheckAbort[
 (* Processing options *)
-{indices,searchDepth,maxDepth,useSR,disksave,diskreco,onmis,tc,sf,usefer}={Replace[OptionValue[NamingFunction],Automatic:>$NamingFunction][nds],OptionValue@Depth,OptionValue@MaxDepth,OptionValue@SR,Replace[OptionValue@DiskSave,True:>BasisDirectory[nm]],Replace[OptionValue@DiskRecover,{Automatic|True->True,_->False}],OptionValue@NMIs,OptionValue@TimeConstrained,OptionValue@SimplifyFunction,OptionValue@UseFermat};
+{indices,searchDepth,maxDepth,useSR,disksave,diskreco,onmis,tc,sf,usefer}={Replace[OptionValue[NamingFunction],Automatic:>$NamingFunction][nds],OptionValue@Depth,OptionValue@MaxDepth,OptionValue@SR,Replace[OptionValue@DiskSave,True:>BasisDirectory[nm]],Replace[OptionValue@DiskRecover,{Automatic|True->True,_->False}],OptionValue@NMIs,OptionValue@TimeConstrained,OptionValue@SimplifyFunction,OptionValue@Fermatica`UseFermat};
+noRules=OptionValue[jRules]@@indices;
 Declare[Evaluate@indices,Number];
 ps=Replace[PowerShifts[nm],Except[0]->1,{1}];
 tcf=If[Not@TrueQ@Not@tc,TimeConstrained,#&];sjopts=FilterRules[(#->OptionValue[SolvejSector,#])&/@First/@Options[SolvejSector],Options[Solvej]];
-ids=Replace[Flatten@{OptionValue@RRs/.Automatic->{IBP[nm],LI[nm]}},x:IBP|LI:>x[nm],{1}];
-ids=Join@@(Through[ids@@indices]);
+ids=Replace[OptionValue@RRs,{Automatic->IBPLI[nm],x:IBPLI|IBP|LI|FPIBP:>x[nm]}];
+(*ids=Join@@(Through[ids@@indices]);*)
 (*/ Processing options *)
 (*Recovering from disk*)
 constr=MapThread[Replace[#1,{1->#2>=1,0->#2<=0}]&,{corner,indices}];
-(*(*Deleted 25.03.2018*)sectcond=Inner[#2[#1]&,indices,(corner/.{1\[Rule](GreaterEqual[#,1]&),0\[Rule](LessEqual[#,0]&)}),And];(*/Deleted 25.03.2018*)*)ptrnrule=Inner[#1->Pattern[#1,_]?#2&,indices,(corner/.{1->Positive,0->NonPositive}),List];
-(*(*Deleted 13.12.2016*)sectp=js[nm,##]&@@Replace[Transpose[{PowerShifts[nm],corner}],{{0,x_}\[RuleDelayed]x,_\[RuleDelayed]0|1},{1}](*/Deleted 13.12.2016*)*)
+ptrnrule=Inner[#1->Pattern[#1,_]?#2&,indices,(corner/.{1->Positive,0->NonPositive}),List];
 If[Not@TrueQ@Not@disksave&&diskreco&&FileExistsQ[disksave<>"/"<>file],jRulesF=Get[disksave<>"/"<>file];If[jRulesF==="reserved",LiteRedPrint["The sector ",jsect," is likely being solved by another kernel. Execute SolvejSector["<>ToString[jsect]<>",DiskRecover\[Rule]True] later to update MIs["<>ToString[nm]<>"]."];Return[Indeterminate],misFound=j[nm,##]&@@indices/.#&/@{ToRules[LogicalExpand@Reduce[Not[Or@@jRulesF[[All,1,2]]]&&And@@constr(*(*Deleted 25.03.2018*)sectcond(*/Deleted 25.03.2018*)*),Integers]]};If[!FreeQ[misFound,Alternatives@@indices],Message[SolvejSector::leak,misFound]]];
 If[disksave===BasisDirectory[nm],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[BasisDirectory["<>ToString[nm]<>"]<>\"/"<>file<>"\"]"],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[\""<>disksave<>"/"<>file<>"\"]"]];LiteRedPrint["Sector ",jsect," is recovered from file"];,
 (**)
-onmis=Replace[onmis,{Automatic:>If[Contexts["Mint`"]=!={},If[IntegerQ[#],#,-1]&@Symbol["Mint`CountMIs"][jsect,Symmetric->useSR],0],f_Function:>f@@jsect}];
+onmis=Replace[onmis,{Automatic:>If[Contexts["Mint`"]=!={},If[IntegerQ[#],#,-1]&@Symbol["Mint`CountMIs"][jsect,Symmetric->useSR],0],n_Integer:>n,f_:>f[jsect]}];
 tcf[LiteRedPrint["Sector ",jsect];If[Not[TrueQ@Not@disksave||FileExistsQ[disksave<>"/"<>file]],If[!DirectoryQ[disksave],CreateDirectory[disksave];Message[DiskSave::dir,disksave]];Put["reserved",disksave<>"/"<>file];reserved=True];(*ptrnrule\[LongDash]replace indices with patterns*)
 gatherRules[x_]:=Flatten[SortBy[Sort[#,(Last@#1)>(Last@#2)&]&/@Gather[{#,j[nm,##]&@@indices/.#}&/@x,MatchQ[Expand[List@@Last@#1-List@@Last@#2],{__Integer}]&(*Gather contiguous*)],{
 Length@First@First@#,(*# of fixed parameters*)
@@ -1799,19 +1908,16 @@ Flatten@Position[Take[jComplexity[Last@First@#],-nds],Except[_Integer],{1}]
 (*position of symbolic indices*)
 }&][[All,All,1]],1];
 (*Prepare to solution*)
-jSector[nm]=jsect;jRulesF={};
-parameters=Complement[Variables[Last@Reap[Collect[ids,_j,Sow]]],indices];
+jSector[nm]=jsect;(*set default sector for proper ordering*)
+jRulesF={};
+parameters=DeleteCases[Parameters[nm],_Integer|_Rational];(*(*Deleted 19.11.2019*)Complement[Variables[Last@Reap[Collect[ids,_j,Sow]]],indices](*/Deleted 19.11.2019*)*);
 If[TrueQ[OptionValue[jGraph]],AppendTo[indicoutput,LiteRedPrintTemporary[GraphPlot[jGraph[jsect],ImageSize->Tiny]]]];
 AppendTo[indicoutput,LiteRedPrintTemporary["Parameters "<>ToString[parameters]<>" are assumed to be independent."]];
 If[onmis>=0,AppendTo[indicoutput,LiteRedPrintTemporary["Expecting "<>ToString[onmis]<>" masters."]]];
-ids=Function@@{sharp[ids]/.MapIndexed[#->Slot@@#2&,indices]};
-(*whenBad*)whenBad[expr_]:=Module[{jl=Cases[CollectjList[expr],{tt_j,_}(*Added 31.05.2016*)(*/;!jSector[tt]<jsect(*
-Definitely erroneous attempt: in particular dropped terms may have zeros in the denominators*)*)(*/Added 31.05.2016*)],dconds,nconds},dconds=LogicalExpand[Or@@(And@@Thread[0==(Last/@CoefficientRules[#,parameters])(*(*Deleted 05.03.2018*)Flatten[{CoefficientList[#,parameters]}](*/Deleted 05.03.2018*)*)]&/@Union@@((First/@FactorList[#])&/@Denominator/@Last/@jl))];nconds={#2,smartReduce[Or@@Thread[Pick[Rest[List@@#1],Rest[List@@jsect],0]>=1]]}&@@@jl;If[MemberQ[nconds,{_,True}],Return[True]];nconds=Or@@Flatten@Cases[nconds,{b_,a:Except[False]}:>Cases[Replace[{a},Or->Sequence,{2},Heads->True],x_/;0=!=Expand[Numerator[b]/.ToRules[x]]]];(*LogicalExpand@*)smartReduce[LogicalExpand[dconds||nconds]]];(*/whenBad*)
-(*smartReduce*)
-smartReduce[expr_]:=Module[{exprl=Replace[{expr},Or->Sequence,{2},Heads->True],exprl1,t,v,l},
-exprl1=(t=Replace[{#},And->Sequence,{2},Heads->True];t=And@@(Function[l,cf[LogicalExpand@TimeConstrained[(*\[LeftArrow]added 25.12.2012*)Reduce[#,l[[1,2]],Integers],300,#]&[And@@l[[All,1]]&&(And@@Select[(*(*Deleted 25.03.2018*)sectcond(*/Deleted 25.03.2018*)*)constr,MemberQ[l[[1,2]],First@#]&])]]]/@GatherBy[Transpose[{t,FixedPoint[Function[l,Union@@Cases[l,x_/;{}!=Intersection[#,x]]&/@l],Cases[indices,n_/;Not[FreeQ[#,n]]]&/@t]}],Last]))&/@exprl;
-Or@@exprl1];cf[x_Or]:=cf/@x;cf[x_]:=Module[{Cs=Union@Cases[{x},_C,\[Infinity]](*\:0441\:0433\:0435\:043d\:0435\:0440\:0438\:0440\:043e\:0432\:0430\:043d\:043d\:044b\:0435 Reduce \:043a\:043e\:043d\:0441\:0442\:0430\:043d\:0442\:044b*),l=Replace[{x},And->Sequence,{2},Heads->True],c,dens=Alternatives@@Pick[indices,corner,1],nums=Alternatives@@Pick[indices,corner,0]},If[MatchQ[x,True|False],Return[x]];l=Replace[l,(*\:0417\:0430\:043c\:0435\:043d\:044f\:0435\:043c \:043d\:0430 \:043a\:0430\:043d\:043e\:043d\:0438\:0447\:0435\:0441\:043a\:0443\:044e \:0444\:043e\:0440\:043c\:0443*)HoldPattern[y_Alternatives\[Element]Integers]:>Sequence@@((#\[Element]Integers)&/@List@@y),{1}];If[Cs=!={},(*\:0415\:0441\:0442\:044c \:043a\:043e\:043d\:0441\:0442\:0430\:043d\:0442\:044b*)(*\:041f\:0440\:043e\:0432\:0435\:0440\:044f\:0435\:043c,\:0447\:0442\:043e Reduce \:0441\:0433\:0435\:043d\:0435\:0440\:0438\:043b \:0442\:043e\:043b\:044c\:043a\:043e \:0446\:0435\:043b\:044b\:0435 \:043a\:043e\:043d\:0441\:0442\:0430\:043d\:0442\:044b*)If[And@@(MemberQ[l,HoldPattern[#\[Element]Integers]]&/@Cs),l=DeleteCases[l,Alternatives@@Cs\[Element]Integers],Return[True]];c=Cases[l,(y_>=#)|(y_<=#)|(#<=y_)|(#>=y_)]&/@Cs;If[Not[And@@(Length[#]===1&/@c)],Return[True]];c=Flatten@c;l=Complement[l,c];c=(*not clear*)Cases[l,t:((z:#+1)==(y:dens)|(y:dens)==(z:#+1)|(z:-#)==(y:nums)|(y:nums)==(z:-#)):>{y,t}]&/@MapThread[Replace[#1,{y_>=#2|#2<=y_:>Expand[y-#2],y_<=#2|#2>=y_:>Expand[#2-y]}]&,{c,Cs}];If[MemberQ[c,{}],Return[True]];c=Last@Last@SortBy[#,Position[indices,First@#1,1]&]&/@c;l=Complement[l,c];c=ExpandAll[Flatten[Solve[c,Cs]]],c={}];(*remove obvious restrictions*)l=DeleteCases[l,Alternatives@@indices\[Element]Integers|dens>=1|1<=dens|nums<=0|0>=nums];(*only equalities allowed*)If[!MatchQ[l,{(Alternatives@@indices==_|_==Alternatives@@indices)...}],Return[True]];l=ExpandAll[Replace[l,(y_==(z:Alternatives@@indices))|((z:Alternatives@@indices)==y_):>z==(y/.c),{1}]];And@@l];(*/smartReduce*)(*fromRules*)fromRules[x_]:=Or@@And@@@(x/.Rule->Equal);(*/fromRules*)(*expandRules*)expandRules[x_]:=(Pick[#1,Table[!MemberQ[Delete[#2,i]/.#1[[i]],True],{i,Length[#1]}]]&[#,Apply[And,#/.Rule->Equal,{1}]])&[Union[Sort/@x]];(*/expandRules*)(* ********************************************************************************************************)
-noRules={{}};
+If[TrueQ[OptionValue[Sharpen]],ids=Function@@{sharpen[ids@@indices]/.MapIndexed[#->Slot@@#2&,indices]}];
+(* ********************************************************************************************************)
+whenBad[expr_]:=WhenBad[expr,indices,corner,parameters];
+smartReduce[expr_]:=SmartReduce[expr,indices,corner];
 jRulesF={};
 indicnr=Length[jRulesF];
 indicstime=AbsoluteTime[];
@@ -1826,17 +1932,17 @@ startp=indices/.case;(*startp will be a list*)
 If[indicpb<Length@case,indicpb=Length@case;LiteRedPrintTemporary[ToString[nds-indicpb]<>" symbolic indices after "<>ToString[Round[AbsoluteTime[]-indicstime]]<>" seconds."]];
 numeric=FreeQ[startp,Alternatives@@indices];
 found=False;
-If[!numeric||Length[misFound]+Length[noRules]>=onmis,(* check if the case falls into the more general *)If[(fr=Select[rulesFound,TrueQ[First[#]/.case]&&Not[TrueQ[Simplify[Last[#]/.case]]]&,1])=!={},(* better sorting desired *)noRules=gatherRules[expandRules[{ToRules@smartReduce[LogicalExpand[fromRules[noRules]||fromRules[{case}]&&fr[[1,2]]]]}]];Continue[]];
+If[!numeric||Length[misFound]+Length[noRules]>=onmis,(* check if the case falls into the more general *)If[(fr=Select[rulesFound,TrueQ[First[#]/.case]&&Not[TrueQ[Simplify[Last[#]/.case]]]&,1])=!={},(* better sorting desired *)noRules=gatherRules[deleteSpecific[{ToRules@smartReduce[LogicalExpand[RulesToCondition[noRules]||RulesToCondition[{case}]&&fr[[1,2]]]]}]];Continue[]];
 indicnr++;indicnop=0;
 except=Alternatives[];
-pat1=(j[nm,##]&@@(Pattern[#,Blank[]]&/@indices))/;Evaluate[fromRules[{case}]];
+pat1=(j[nm,##]&@@(Pattern[#,Blank[]]&/@indices))/;Evaluate[RulesToCondition[{case}]];
 pos=Flatten[Position[indices,Alternatives@@Complement[indices,First/@case],1]];
 (*dbase={0\[Rule]0};*)
 If[usefer,finitdb,initdb][dbase,jsect,Join[Variables[startp],parameters]];
 depth=0;
 While[depth<=searchDepth,
 (*Construct equations*)
-eqs=(*(*Deleted 02.03.2018*)DeleteDuplicates@DeleteCases[(*/Deleted 02.03.2018*)*)Flatten[(If[useSR&&numeric,Join[ids@@#,SR[nm]@@#]/.ZerojRule[nm],ids@@#])&/@(preparepoints[jsect,startp,depth])](*(*Deleted 02.03.2018*),0](*/Deleted 02.03.2018*)*);
+eqs=(*(*Deleted 02.03.2018*)DeleteDuplicates@DeleteCases[(*/Deleted 02.03.2018*)*)Flatten[(If[useSR&&numeric,Join[ids@@#,SR[nm]@@#]/.ZerojRule[nm],ids@@#])&/@(preparepoints[jsect,startp,depth])];
 (*/Construct equations*)
 indicnopToGo=indicnop+Length[eqs];
 If[usefer,fsubmiteqs,submiteqs][eqs,dbase,jsect,startp];
@@ -1846,14 +1952,16 @@ LiteRedMonitor[
 jRules1=(#/.MapThread[#1->Expand[2#1-#2]&,{indices[[pos]],Rest[List@@First[#]][[pos]]}])&[fr];
 (*Patternize the left sides of the rules and form a list of rules for the integrals to consider later*)
 {jRules1,{{rules2}}}=Reap[(*Modified 01.12.2016*)
-(j[nm,##]&@@indices/.ptrnrule)/;Evaluate[fromRules[{case}]&&Not[Sow[whenBad[#[[2]]]]]]:>Evaluate[If[Head[#[[2]]]===List,{Collectj[#[[2,1]],sf],#[[2,2]]},Collectj[#[[2]],sf]]](*\[LongLeftArrow] this should also work if the second element is a pair*)(*/Modified 01.12.2016*)&@jRules1];
+(j[nm,##]&@@indices/.ptrnrule)/;Evaluate[RulesToCondition[{case}]&&Not[Sow[whenBad[#[[2]]]]]]:>Evaluate[If[Head[#[[2]]]===List,{Collectj[#[[2,1]],sf],#[[2,2]]},Collectj[#[[2]],sf]]](*\[LongLeftArrow] this should also work if the second element is a pair*)(*/Modified 01.12.2016*)&@jRules1];
 
 ,"Constructing rule...",1];
 If[rules2=!=True,(*Found the rule!*)
-AppendTo[rulesFound,{fromRules[{case}],rules2}];
-(*TODO: better sorting*)noRules=gatherRules[expandRules[{ToRules@smartReduce[LogicalExpand[fromRules[noRules]||fromRules[{case}]&&rules2]]}]];AppendTo[jRulesF,jRules1];found=True;
+AppendTo[rulesFound,{RulesToCondition[{case}],rules2}];
+(*TODO: better sorting*)
+noRules=gatherRules[deleteSpecific[{ToRules@smartReduce[LogicalExpand[RulesToCondition[noRules]||RulesToCondition[{case}]&&rules2]]}]];
+AppendTo[jRulesF,jRules1];found=True;
 If[usefer,fcleandb,cleandb][dbase];
-(*Modified 01.03.2018*)(*depth=searchDepth+1;*)Break[](*/Modified 01.03.2018*),
+(*Modified 01.03.2018*)Break[](*/Modified 01.03.2018*),
 PutAppend[jRules1,BasisDirectory[nm]<>StringReplace[ToString[jsect],"js["->"/jBadRules["]];
 LiteRedPrintTemporary[Style["Was not able to construct applicability condition for "<>ToString[fr[[1]]]<>"\[Ellipsis]",Tiny]];
 except=except|fr[[1]];
@@ -1887,7 +1995,32 @@ SelectionMove[EvaluationNotebook[],Next,CellGroup];
 If[GeneratedCell/.Options[NotebookSelection[EvaluationNotebook[]],GeneratedCell],
 FrontEndTokenExecute["Clear"]]
 ];
-If[Not@TrueQ@Not@BasisDirectory[nm],Quiet[DiskSave[nm,Save->"Basis"]]];Length@misFound,(*Cleaning up*)If[reserved,DeleteFile[disksave<>"/"<>file]];Abort[]]]
+If[Not@TrueQ@Not@BasisDirectory[nm],Quiet[DiskSave[nm,Save->"Basis"]]];Length@misFound,
+(*Cleaning up*)
+If[reserved,DeleteFile[disksave<>"/"<>file]];Abort[]]]
+
+
+(*WhenBad*)WhenBad[expr_,indices_,corner_,parameters_]:=Module[{jl=(*Added 27.11.2019*)CollectjList[expr](*/Added 27.11.2019*)(*(*Deleted 27.11.2019*)Cases[CollectjList[expr],{tt_j,_}(*Added 31.05.2016*)(*/;!jSector[tt]<jsect(*
+Definitely erroneous attempt: in particular dropped terms may have zeros in the denominators*)*)(*/Added 31.05.2016*)](*/Deleted 27.11.2019*)*),dconds,nconds,pars,p},
+pars=Replace[parameters,{}->{p}];(*work around for CoefficientRules[expr,{}] to work*)
+dconds=LogicalExpand[Or@@(And@@Thread[0==(Last/@CoefficientRules[#,pars])(*(*Deleted 05.03.2018*)Flatten[{CoefficientList[#,parameters]}](*/Deleted 05.03.2018*)*)]&/@Union@@((First/@FactorList[#])&/@Denominator/@Last/@jl))];nconds={#2,SmartReduce[Or@@Thread[Pick[Rest[List@@#1],corner,0]>=1],indices,corner]}&@@@jl;If[MemberQ[nconds,{_,True}],Return[True]];nconds=Or@@Flatten@Cases[nconds,{b_,a:Except[False]}:>Cases[Replace[{a},Or->Sequence,{2},Heads->True],x_/;0=!=Expand[Numerator[b]/.ToRules[x]]]];(*LogicalExpand@*)SmartReduce[LogicalExpand[dconds||nconds],indices,corner]];(*/WhenBad*)
+
+
+(*SmartReduce*)
+SmartReduce[expr_,indices_,corner_]:=Module[{exprl=Replace[{expr},Or->Sequence,{2},Heads->True],exprl1,t,v,l,constr=MapThread[Replace[#1,{1->#2>=1,0->#2<=0}]&,{corner,indices}]},
+exprl1=(t=Replace[{#},And->Sequence,{2},Heads->True];t=And@@(Function[l,cf[LogicalExpand@TimeConstrained[(*\[LeftArrow]added 25.12.2012*)Reduce[#,l[[1,2]],Integers],300,#]&[And@@l[[All,1]]&&(And@@Select[constr,MemberQ[l[[1,2]],First@#]&])],indices,corner]]/@GatherBy[Transpose[{t,FixedPoint[Function[l,Union@@Cases[l,x_/;{}!=Intersection[#,x]]&/@l],Cases[indices,n_/;Not[FreeQ[#,n]]]&/@t]}],Last]))&/@exprl;
+Or@@exprl1];
+
+
+cf[x_Or,indices_,corner_]:=cf[#,indices,corner]&/@x;cf[x_,indices_,corner_]:=Module[{Cs=Union@Cases[{x},_C,\[Infinity]](*\:0441\:0433\:0435\:043d\:0435\:0440\:0438\:0440\:043e\:0432\:0430\:043d\:043d\:044b\:0435 Reduce \:043a\:043e\:043d\:0441\:0442\:0430\:043d\:0442\:044b*),l=Replace[{x},And->Sequence,{2},Heads->True],c,dens=Alternatives@@Pick[indices,corner,1],nums=Alternatives@@Pick[indices,corner,0]},If[MatchQ[x,True|False],Return[x]];l=Replace[l,(*\:0417\:0430\:043c\:0435\:043d\:044f\:0435\:043c \:043d\:0430 \:043a\:0430\:043d\:043e\:043d\:0438\:0447\:0435\:0441\:043a\:0443\:044e \:0444\:043e\:0440\:043c\:0443*)HoldPattern[y_Alternatives\[Element]Integers]:>Sequence@@((#\[Element]Integers)&/@List@@y),{1}];If[Cs=!={},(*\:0415\:0441\:0442\:044c \:043a\:043e\:043d\:0441\:0442\:0430\:043d\:0442\:044b*)(*\:041f\:0440\:043e\:0432\:0435\:0440\:044f\:0435\:043c,\:0447\:0442\:043e Reduce \:0441\:0433\:0435\:043d\:0435\:0440\:0438\:043b \:0442\:043e\:043b\:044c\:043a\:043e \:0446\:0435\:043b\:044b\:0435 \:043a\:043e\:043d\:0441\:0442\:0430\:043d\:0442\:044b*)If[And@@(MemberQ[l,HoldPattern[#\[Element]Integers]]&/@Cs),l=DeleteCases[l,Alternatives@@Cs\[Element]Integers],Return[True]];c=Cases[l,(y_>=#)|(y_<=#)|(#<=y_)|(#>=y_)]&/@Cs;If[Not[And@@(Length[#]===1&/@c)],Return[True]];c=Flatten@c;l=Complement[l,c];c=(*not clear*)Cases[l,t:((z:#+1)==(y:dens)|(y:dens)==(z:#+1)|(z:-#)==(y:nums)|(y:nums)==(z:-#)):>{y,t}]&/@MapThread[Replace[#1,{y_>=#2|#2<=y_:>Expand[y-#2],y_<=#2|#2>=y_:>Expand[#2-y]}]&,{c,Cs}];If[MemberQ[c,{}],Return[True]];c=Last@Last@SortBy[#,Position[indices,First@#1,1]&]&/@c;l=Complement[l,c];c=ExpandAll[Flatten[Solve[c,Cs]]],c={}];(*remove obvious restrictions*)l=DeleteCases[l,Alternatives@@indices\[Element]Integers|dens>=1|1<=dens|nums<=0|0>=nums];(*only equalities allowed*)If[!MatchQ[l,{(Alternatives@@indices==_|_==Alternatives@@indices)...}],Return[True]];l=ExpandAll[Replace[l,(y_==(z:Alternatives@@indices))|((z:Alternatives@@indices)==y_):>z==(y/.c),{1}]];And@@l];(*/smartReduce*)
+
+
+(*deleteSpecific*)
+deleteSpecific::usage="deleteSpecific[rules] deletes all rules which have their more generic representatives. E.g., deleteSpecific[{{x\[Rule]1},{x\[Rule]1,y\[Rule]2}}] yields {{x\[Rule]1}}.";
+deleteSpecific[x_]:=(Pick[#1,Table[!MemberQ[Delete[#2,i]/.#1[[i]],True],{i,Length[#1]}]]&[#,Apply[And,#/.Rule->Equal,{1}]])&[Union[Sort/@x]];(*/deleteSpecific*)
+
+
+(*RulesToCondition*)RulesToCondition[x_]:=Or@@And@@@(x/.Rule->Equal);(*/RulesToCondition*)
 
 
 SolvejSector::nots="The first argument of SolvejSector should be js[\[Ellipsis]]. Received instead:\n`1`";
@@ -3160,7 +3293,7 @@ res
 ToMIsRule::usage = "ToMIsRule[{j[\[Ellipsis]],j[\[Ellipsis]],...}] gives a rule to pass to new master integrals.";
 
 
-Options[ToMIsRule]={UseFermat->False}
+Options[ToMIsRule]={Fermatica`UseFermat->False}
 
 
 ToMIsRule[jjs___j,opts:OptionsPattern[]]:=ToMIsRule[{jjs},opts];
@@ -3176,7 +3309,7 @@ matr=Append[matr,Coefficient[mis,First@mis1]];
 If[MatrixRank@matr<Length@matr,matr=Most[matr],AppendTo[nmis,First@mis1]];
 mis1=Rest@mis1;
 ];
-Return[Collectj[Thread[mis->If[OptionValue[UseFermat],FInverse[matr],Inverse[matr]].nmis],Factor]]
+Return[Collectj[Thread[mis->If[OptionValue[Fermatica`UseFermat],FInverse[matr],Inverse[matr]].nmis],Factor]]
 ]
 
 
@@ -4810,9 +4943,11 @@ StyleBox[\"variables\", \"TI\"]\)] returns syzygy basis.";
 $LiteRedSyzygy::err="Have no tool to calculate syzygy. Set $LiteRedSyzygy to the function, so that $LiteRedSyzygy[\!\(\*
 StyleBox[\"polynomials\", \"TI\"]\),\!\(\*
 StyleBox[\"variables\", \"TI\"]\)] returns syzygy basis.";
+
+
 syzygy:=Which[
 ValueQ[$LiteRedSyzygy],$LiteRedSyzygy,
-MemberQ[$ContextPath,"Singular`"],$LiteRedSyzygy=Symbol["SingularSyz"],
+MemberQ[$ContextPath,"Singin`"],$LiteRedSyzygy=Symbol["singMBSyz"],
 True,Message[$LiteRedSyzygy::err];Abort[]
 ];
 
@@ -4856,69 +4991,6 @@ layer[l_Integer,d_Integer]:=Differences@Join[{0},#1,{d+l}]&/@Subsets[Range[d+l-1
 
 
 diamond[l_Integer,d_Integer]:=Module[{list},Flatten[Outer[list,Sequence@@Replace[#,{n_?Positive:>{n,-n},n_:>{n}},{1}]]&/@layer[l,d]]/.list->List]
-
-
-GenerateFPIBP::usage="GenerateFPIBP[\!\(\*
-StyleBox[\"basis\", \"TI\"]\)] generate Integration-By-Part identities in parametric representation for unique sectors of the \!\(\*
-StyleBox[\"basis\", \"TI\"]\).";
-jsFPIBP::usage="jsFPIBP[nm,0,1,\[Ellipsis]] returns a function for the IBP identities in parametric representation in the sector js[nm,0,1,\[Ellipsis]].";
-FPIBP::usage="FPIBP[nm,0,2,1\[Ellipsis]] returns a list of the IBP identities in parametric representation.";
-
-
-Options[GenerateFPIBP]={DiskRecover->True,MonomialOrder->Automatic,TimeConstrained->False};
-
-
-GenerateFPIBP::us="Calling GenerateFPIBP[`1`] requires UniqueSectors[`1`]";
-GenerateFPIBP[nm_,opts:OptionsPattern[]]:=Module[{us=UniqueSectors[nm],lus,rcv=OptionValue[DiskRecover],rcvrd={},fn,i=0,jsec},
-If[Head@us===UniqueSectors,Message[GenerateFPIBP::us,nm];Abort[]];
-lus=Length@us;
-LiteRedPrint["Generating Integration-By-Part identities in parametric representation for unique sectors."];
-LiteRedMonitor[
-(jsec=js[##];If[TrueQ[rcv]&&FileExistsQ[fn=BasisDirectory[nm]<>"/jsFPIBP["<>StringTake[ToString[{##}],{2,-2}]<>"]"],Function[x,nm /: jsFPIBP[##] := Get[x]][fn];AppendTo[rcvrd,ToString[HoldForm[jsFPIBP[##]]]],
-jsFPIBP[##,FilterRules[Flatten@{opts},Options[jsFPIBP]]]
-];i++)&@@@us,
-TableForm[{ProgressIndicator[i,{0,lus}],
-jsec,Row[Prepend[rcvrd,"Recovered: "]]}]
-];
-LiteRedPrint["Generated Integration-By-Part identities in parametric representation for "<>ToString[Length@us]<>" sectors."];
-];
-
-
-Options[jsFPIBP]={MonomialOrder->Automatic,Throw->100,TimeConstrained->False};
-jsFPIBP::failed="Failed to construct syzygy for the sector `1`";
-
-
-jsFPIBP[nm_,inds__,opts:OptionsPattern[]]:=Module[
-{tp,i=0,pl,syz,jsec=js[nm,inds],L=Length@LMs@nm,\[Nu]=MetricTensor[]/2,G,t,xs,ns,gradG,pb,p,b,jf,f,attempts=OptionValue[Throw],mo=OptionValue@MonomialOrder,tc=OptionValue[TimeConstrained]/.False|None->Infinity},{G,t,xs}=FeynParUF[jsec,NamingFunction->(Table[Unique["x"],{#}]&),Function->False];G+=t;
-gradG=D[G,#]&/@xs;
-ns=Table[Unique["n"],{Length@xs}];
-b=IdentityMatrix[Length@xs];
-Function[ps,jf=ReplacePart[j[nm,inds],Thread[ps->#]]&][Flatten@Position[jsec,1,{1}]];
-If[mo===Automatic,
-t=Catch[TimeConstrained[
-NotebookDelete[tp];
-tp=LiteRedPrintTemporary["Attempt #",++i,": ",pl=PermutationList[#,Length@xs]];
-Quiet[syz=syzygy[Append[gradG,G],Permute[xs,#]]];If[syz=!=$Failed,Throw[syz]],tc,$Failed]&/@Prepend[RandomPermutation[Length@xs,attempts-1],Cycles[{}]];$Failed]
-,
-t=TimeConstrained[syzygy[Append[gradG,G],xs,MonomialOrder->mo],tc,$Failed](*Reverse@xs,MonomialOrder\[Rule] DegreeReverseLexicographic]*);
-];
-NotebookDelete[tp];
-If[t===$Failed,Message[jsFPIBP::failed,js[nm,inds]];Return[$Failed]];(*exit if failed*)
-f=f[Function[syz,
-pb=CoefficientRules[syz,xs];p=Last@pb;pb=Most@pb;
-Plus@@(Flatten@{MapIndexed[Function[{l,i},(#2*Pochhammer[(L+1)\[Nu]-Plus@@ns,1-Plus@@#1]Times@@Pochhammer[ns,#1](jf[ns+#1-b[[First@i]]]))&@@@l],pb],
-(\[Nu]*#2*Pochhammer[(L+1)\[Nu]-Plus@@ns,-Plus@@#1]Times@@Pochhammer[ns,#1](jf[ns+#1]))&@@@p
-})]/@t/.Thread[ns->Array[Slot,Length@ns]]]/.f->Function;
-LiteRedPrint["    jsFPIBP["<>#<>"] \[LongDash] IBP identities in parametric representation."]&@StringTake[ToString[{nm,inds}],{2,-2}];
-(Put[f, #]; nm /: jsFPIBP[nm, inds] := Get[#])&[BasisDirectory[nm]<>"/jsFPIBP["<>StringTake[ToString[{nm,inds}],{2,-2}]<>"]"];Remove/@xs;
-f]
-
-
-FPIBP::nonum="Numerators are not allowed.";
-FPIBP[nm_,inds__]:=Module[{jsec=jSector@j[nm,inds]},
-If[DeleteCases[Pick[{inds},Rest[List@@jsec],0],0]=!={},Message[FPIBP::nonum];Return[{}]];
-(jsFPIBP@@jsec)@@Pick[{inds},Rest[List@@jsec],1]
-]
 
 
 CellPrint[Cell["TODO list:", "Text", CellFrame->{{0, 0}, {0, 1}}]];
