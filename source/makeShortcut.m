@@ -1,6 +1,8 @@
 SetDirectory[DirectoryName[$InputFileName]]
 appdir=$UserBaseDirectory <> "/Applications/LiteRed2/";
-file = Last[FileNames["LiteRed*.m"]];
+file = FileNames["LiteRed*.m"];
+If[file==={},Print["No LiteRed*.m in "<>Directory[]<>". Changed nothing, quitting..."];Quit[]];
+file=Last[file];
 Quiet[CreateDirectory[appdir]];
 init=OpenWrite[appdir<>"init.m"];
 WriteString[init,"Begin[\"LiteRed2`Private`\"]\n\
@@ -10,7 +12,7 @@ WriteString[init,"Begin[\"LiteRed2`Private`\"]\n\
       Print[\"Error: can not find \"<>file<>\"\\nCheck if this file exists in \"<>path]\n\
     ]\n\
   ]"<>"\n\
-End[]"
+End[];"
 ]
 Close[init]
 Print["Installed shortcut for "<>file<>".\nTo load the package, use\n  <<LiteRed2`"]
