@@ -200,6 +200,7 @@ jGraph;
 
 GenerateFeynParUF;
 FeynParUF;FeynParGdG;
+FeynParUVM;
 
 
 GramP;GramPFunction;
@@ -3481,10 +3482,10 @@ StyleBox[\"U\", \"TI\"]\),\!\(\*
 StyleBox[\"F\", \"TI\"]\),\!\(\*
 StyleBox[\"xs\", \"TI\"]\)}, where \!\(\*
 StyleBox[\"U\", \"TI\"]\) and \!\(\*
-StyleBox[\"F\", \"TI\"]\) are the polynomials, entering the Feynman parametrization of the integrals in the highest sector  of the basis.\nFeynParUF[js[\[Ellipsis]]] gives \!\(\*
+StyleBox[\"F\", \"TI\"]\) are the polynomials, entering the Feynman parametrization of the integrals in the highest sector  of the basis, and \!\(\*
+StyleBox[\"xs\", \"TI\"]\) are the Feynman parameters.\nFeynParUF[js[\[Ellipsis]]] gives \!\(\*
 StyleBox[\"U\", \"TI\"]\) and \!\(\*
-StyleBox[\"F\", \"TI\"]\) polynomials, entering the Feynman parametrization of the integrals in the given sector, and \!\(\*
-StyleBox[\"xs\", \"TI\"]\) are the Feynman parameters.\nFeynParUF[{\!\(\*
+StyleBox[\"F\", \"TI\"]\) polynomials, entering the Feynman parametrization of the integrals in the given sector.\nFeynParUF[{\!\(\*
 StyleBox[\"dens\", \"TI\"]\)},{\!\(\*
 StyleBox[\"lms\", \"TI\"]\)}] does the same for the integrals with denominators {\!\(\*
 StyleBox[\"dens\", \"TI\"]\)} and loop momenta {\!\(\*
@@ -3561,6 +3562,49 @@ GenerateFeynParUF[nm__]:=(GenerateFeynParUF/@{nm};)
 
 GenerateFeynParUF[nm_Symbol]:=(Function[fp,(nm/:FeynParUF[nm,OptionsPattern[]]:=If[OptionValue[Function],fp,Append[fp@@#,#]&@OptionValue[NamingFunction][Length@Ds[nm]]])][FeynParUF[Ds[nm],LMs[nm],Function->True]];CurrentState[nm,GenerateFeynParUF]=True;LiteRedPrint["Polynomials U and F for basis "<>#<>" are generated.\n    FeynParUF[" <> # <>",\!\(\*
 StyleBox[\"options\", \"TI\"]\)] should work faster now."] &@ToString[nm];)
+
+
+FeynParUVM::usage="FeynParUVM[\!\(\*
+StyleBox[\"basis\", \"TI\"]\)] gives a list {\!\(\*
+StyleBox[\"U\", \"TI\"]\),\!\(\*
+StyleBox[\"V\", \"TI\"]\),\!\(\*
+StyleBox[\"M\", \"TI\"]\),\!\(\*
+StyleBox[\"xs\", \"TI\"]\)}, where \!\(\*
+StyleBox[\"M\", \"TI\"]\)\!\(\*
+StyleBox[\"=\", \"TI\"]\)\!\(\*
+StyleBox[\"\[Sum]\", \"TI\"]\)\!\(\*SubscriptBox[
+StyleBox[\"x\", \"TI\"], \(k\)]\)\!\(\*SubsuperscriptBox[
+StyleBox[\"m\", \"TI\"], \(k\), \(2\)]\) and \!\(\*
+StyleBox[\"U\", \"TI\"]\) and \!\(\*
+StyleBox[\"F\", \"TI\"]\)\!\(\*
+StyleBox[\"=\", \"TI\"]\)\!\(\*
+StyleBox[\"V\", \"TI\"]\)\!\(\*
+StyleBox[\"+\", \"TI\"]\)\!\(\*
+StyleBox[\"MU\", \"TI\"]\) are the polynomials, entering the Feynman parametrization of the integrals in the highest sector  of the basis, and \!\(\*
+StyleBox[\"xs\", \"TI\"]\) are the Feynman parameters.\nFeynParUVM[js[\[Ellipsis]]] gives the polynomials, entering the Feynman parametrization of the integrals in the given sector.\nFeynParUVM[{\!\(\*
+StyleBox[\"dens\", \"TI\"]\)},{\!\(\*
+StyleBox[\"lms\", \"TI\"]\)}] does the same for the integrals with denominators {\!\(\*
+StyleBox[\"dens\", \"TI\"]\)} and loop momenta {\!\(\*
+StyleBox[\"lms\", \"TI\"]\)}.";
+
+
+Options[FeynParUVM]={Function->False (*Whether to present result in the form of a pure function*),NamingFunction->(Array[Symbol["x"<>ToString[#]]&,{#}]&)};
+
+
+FeynParUVM[pars__,OptionsPattern[]]:=Module[
+{U,F,M=0,mm,Frules,xs},
+{U,F,xs}=FeynParUF[pars,Function->False,NamingFunction->OptionValue[NamingFunction]];
+If[Not[MatchQ[First/@CoefficientRules[U,xs],{({(0|1)...})...}]],Return[$Failed]];
+If[Not[MatchQ[First/@CoefficientRules[F,xs],{({(0|1)...}|{(0|1)...,2,(0|1)...})...}]],Return[$Failed]];
+(*Now, for each variable we try to eliminate the quadratic terms using MU*)
+Catch[
+(Quiet[Check[mm=Factor[Coefficient[F,#,2]/Coefficient[U,#,1]],Throw[$Failed]]];If[FreeQ[mm,Alternatives@@xs],M+=#*mm,Throw[$Failed]])&/@xs;
+If[TrueQ[OptionValue[Function]],
+Function@@{{U,Collect[F-M U,xs],M,xs}/.MapIndexed[#->Slot[First[#2]]&,xs]},
+{U,Collect[F-M U,xs],M,xs}
+]
+]
+]
 
 
 GramP::usage="GramP[\!\(\*
