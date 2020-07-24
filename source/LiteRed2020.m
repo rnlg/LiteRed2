@@ -26,13 +26,18 @@ LiteRed`Private`template=False
 ]
 
 
-Vectors`VectorsLog=False;
-Needs["Vectors`","RNL`Vectors`"];
-Needs["LinearFunctions`","RNL`LinearFunctions`"];
+LiteRed`$LiteRedHomeDirectory=DirectoryName[$InputFileName];
 
 
-Needs["Numbers`","RNL`Numbers`"];
-Needs["Types`","RNL`Types`"];
+LiteRed`Private`LRNeeds[context_String,files:{___String}]:=Quiet[Needs[context,#]&/@files];
+
+
+Types`TypesLog=False;
+LiteRed`Private`LRNeeds["Types`",{"RNL`Types`",LiteRed`$LiteRedHomeDirectory<>"RNL/Types.m"}];
+LiteRed`Private`LRNeeds["LinearFunctions`",{"RNL`LinearFunctions`",LiteRed`$LiteRedHomeDirectory<>"RNL/LinearFunctions.m"}];
+LiteRed`Private`LRNeeds["Numbers`",{"RNL`Numbers`",LiteRed`$LiteRedHomeDirectory<>"RNL/Numbers.m"}];Vectors`VectorsLog=False;LiteRed`Private`LRNeeds["Vectors`",{"RNL`Vectors`",LiteRed`$LiteRedHomeDirectory<>"RNL/Vectors.m"}];
+
+
 BeginPackage["LiteRed`",{"Vectors`","LinearFunctions`","Numbers`","Types`"}]
 
 
@@ -40,6 +45,12 @@ $LiteRedVersion="2.020";
 $LiteRedReleaseDate="09.01.2020";
 $LiteRedVersion::usage="$LiteRedVersion is the current version of the LiteRed package.";
 $LiteRedReleaseDate::usage="$LiteRedReleaseDate is the release date of the current version.";
+
+
+Global`$LiteRedToDo=True;
+
+
+todo["Move $LiteRed* names to Glabal` context. Check!"];
 
 
 SetAttributes[LiteRed`Private`WarnSet,HoldAll];
@@ -264,9 +275,6 @@ GenerateFPIBP;jsFPIBP;FPIBP;
 {ToDShifts,FromDShifts,NumeratorsToDShifts,FindSymmetriesDen,UniqueSectorsDen,MappedSectorsDen,SolvejSectorDen,SolvejSectorD,jRulesDen,jSymmetriesDen,IBPReduceDen,NumDepth};
 
 
-$LiteRedHomeDirectory=DirectoryName[$InputFileName];
-
-
 LiteRed`Private`LiteRedPrint["**************** ",Style["LiteRed v"<>ToString[$LiteRedVersion],{Bold,Lighter@Red}]," ********************\n\
 Author: Roman N. Lee, Budker Institute of Nuclear Physics, Novosibirsk.\n\
 Release Date: "<>$LiteRedReleaseDate<>"\n\
@@ -277,6 +285,9 @@ It also contains some other useful tools.\n\nSee ?LiteRed`* for a list of functi
 
 
  SectorLayer
+
+
+GramM;
 
 
 Begin["`Private`"]
@@ -573,7 +584,6 @@ dens = Replace[ds,x_?VecQ :> sp[x, x], {1}];
 ems = Complement[Union@Cases[dens, _?VecVarQ, Infinity], lms];
  sps = Union @@ Outer[sp, lms, Join[lms, ems]];
 ddens=Expand@LFDistribute[dens,sp];
-pars=Variables[{Cases[Variables[ddens],_?(FreeQ[#,Alternatives@@lms]&)], Outer[sp, ems, ems],{d}}];
 dim=Length@dens;ns=Length@sps-dim;
 (*add numerators*)
 If[ns<0,Message[NewDsBasis::notb]; Abort[]];
@@ -586,6 +596,7 @@ dim=Length@sps;
 LiteRedPrint["Irreducible numerator(s) appended: ",Sequence@@Riffle[nums,","],".\nUsing {___, "<>StringTake[ToString[ConstantArray[0,ns]],{2,-2}]<>"} as a pattern for AnalyzeSectors."];
 ];(*/add numerators*)
 ps=PadRight[ps/.{None->ConstantArray[0,dim]},dim];
+pars=Variables[{Cases[Variables[ddens],_?(FreeQ[#,Alternatives@@lms]&)], Outer[sp, ems, ems],{d},ps}];
 If[Not[MatchQ[ps,{Except[0]...,0...}]&&MatchQ[Take[ps,-ns],{0...}]],Message[NewDsBasis::ps];Abort[]];
 SectorsPattern[nm]^=Replace[SectorsPattern[nm],Automatic->{___,Sequence@@ConstantArray[0,ns]}];
 (*If[dim != Length[sps] || Det[Coefficient[ddens, #] & /@ sps] == 0,Message[NewDsBasis::notb];Abort[]];*)
@@ -1106,7 +1117,7 @@ Return[{nm,Plus@@jsec,jsec0,Plus@@#,-num*#.jsec,Sequence@@(-#)}&[jsec1*(2 jsec-1
 ]
 
 
-jComplexity[j1_j,j2_j]:=Expand[jComplexity@j1-jComplexity@j2]
+jComplexity[j1_j,j2_j]:=ReplacePart[Expand[jComplexity@j1-jComplexity@j2],1->Signature[{First@j2,First@j1}]]
 
 
 j/:j[nm1_,inds1__]<j[nm2_,inds2__]:=Module[{jc=jComplexity[j[nm1,inds1],j[nm2,inds2]],jc0},jc0=0&/@jc;
@@ -1362,7 +1373,8 @@ GenerateIBP[nm_]:=Module[{ds=LFDistribute[Ds@nm,sp],dim=Length[Ds@nm],lms=LMs@nm
 CurrentState[nm,GenerateIBP]=False;
 If[!ValueQ[Ds@nm],Message[NewDsBasis::notb];Return[$Failed]];qms=Join[lms,ems];dp=Table[Unique["n"],{dim}];
 sh=Thread[dp->dp+PowerShifts[nm]];
-ibps=Outer[Function[{qm,lm},Collectj[Expand[(j[nm,##1]&)@@dp (Boole[qm===lm]MetricTensor[]-Plus@@MapIndexed[Function[{den,ind},dp[[First[ind]]] (j[nm,##1]&@@IntegerDigits[2^(dim-First[ind]),2,dim])*Plus@@(2^Boole[#1===lm] sp[qm,#1] Coefficient[den,sp[lm,#1]]&)/@qms/. Toj[nm]],ds])],Factor[#/.sh]&]],qms,lms];lis=Plus@@MapIndexed[(#1/.{j[nm,x__]:>(ibps[[Range[-Length@ems,-1],First@#2]]/.Thread[dp->dp+{x}])})&,Expand[(j[nm,##]&@@ConstantArray[0,{dim}])Outer[sp,lms,ems]/.Toj[nm]]];lis=Collectj[(lis[[##]]&@@Reverse[#])-(lis[[##]]&@@#),Factor[#/.sh]&]&/@Subsets[Range[Length@ems],{2}];
+ibps=Outer[Function[{qm,lm},Collectj[Expand[(j[nm,##1]&)@@dp (Boole[qm===lm]MetricTensor[]-Plus@@MapIndexed[Function[{den,ind},dp[[First[ind]]] (j[nm,##1]&@@IntegerDigits[2^(dim-First[ind]),2,dim])*Plus@@(2^Boole[#1===lm] sp[qm,#1] Coefficient[den,sp[lm,#1]]&)/@qms/. Toj[nm]],ds])],Factor[#/.sh]&]],qms,lms];
+lis=Plus@@MapIndexed[(#1/.{j[nm,x__]:>(ibps[[Range[-Length@ems,-1],First@#2]]/.Thread[dp->dp+{x}])})&,Expand[(j[nm,##]&@@ConstantArray[0,{dim}])Outer[sp,lms,ems]/.Toj[nm]]];lis=Collectj[(lis[[##]]&@@Reverse[#])-(lis[[##]]&@@#),Factor[#]&]&/@Subsets[Range[Length@ems],{2}];
 IBP[nm]^=Function[Evaluate@Flatten[ibps]]/.Thread[dp->Table[slot[i],{i,dim}]]/.slot->Slot;
 LI[nm]^=Function[Evaluate@lis]/.Thread[dp->Table[slot[i],{i,dim}]]/.slot->Slot;
 Remove/@dp;LiteRedPrint["Identities are generated.\n    IBP[" <> # <>"] \[LongDash] integration-by-part identities,\n    LI[" <> # <>"] \[LongDash] Lorentz invariance identities."] &@ToString[nm];
@@ -1828,6 +1840,7 @@ DiskSave->True(*whether to save rules on the disk?*),
 DiskRecover->False(*whether to recover rules from the disk?*),
 Replace->True(*whether to replace rules on the disk?*),
 TimeConstrained->False (*whether to constrain time, False or number of seconds*),
+TimeConstraint->{}(*List of rules of the form {5\[Rule]100,2\[Rule]400,...}. Here 5\[Rule]100 means that SolvejSector is alowed to spend no more that 100 seconds to reduce integrals with >5 symbolic indices*),
 CheckZeroFunction->Factor1,CheckZeroAlways->True,SimplifyFunction->Factor1,SimplifyAlways->True,
 
 Fermatica`UseFermat->False,
@@ -1870,7 +1883,9 @@ indicnop=0,
 indicnopToGo=0,
 indicoutput={},
 indicpb=0,
+indicspent,
 indicstime,
+indicsip="",
 moni,
 misFound={},
 numeric,
@@ -1882,12 +1897,13 @@ eqs,neqs,sf,
 dbase(*jRulesDB*),
 ids,sharp=If[TrueQ[OptionValue[Sharpen]],sharpen,Identity],case,rules2,startp,
 pat1,except,usefer,
-ptrnrule,jRules1,jRulesF,pos,searchDepth,useSR,indicnr,fr,disksave,diskreco,onmis,tc,tcf,sjopts,
-whenBad,smartReduce,(*cf,
+ptrnrule,jRules1,jRulesF,pos,searchDepth,useSR,indicnr,fr,disksave,diskreco,onmis,
+tc,tcf,tct,tctr,tc1,
+sjopts,whenBad,smartReduce,(*cf,
 fromRules,expandRules,*)found,depth,maxDepth},
 CheckAbort[
 (* Processing options *)
-{indices,searchDepth,maxDepth,useSR,disksave,diskreco,onmis,tc,sf,usefer}={Replace[OptionValue[NamingFunction],Automatic:>$NamingFunction][nds],OptionValue@Depth,OptionValue@MaxDepth,OptionValue@SR,Replace[OptionValue@DiskSave,True:>BasisDirectory[nm]],Replace[OptionValue@DiskRecover,{Automatic|True->True,_->False}],OptionValue@NMIs,OptionValue@TimeConstrained,OptionValue@SimplifyFunction,OptionValue@Fermatica`UseFermat};
+{indices,searchDepth,maxDepth,useSR,disksave,diskreco,onmis,tc,tct,sf,usefer}={Replace[OptionValue[NamingFunction],Automatic:>$NamingFunction][nds],OptionValue@Depth,OptionValue@MaxDepth,OptionValue@SR,Replace[OptionValue@DiskSave,True:>BasisDirectory[nm]],Replace[OptionValue@DiskRecover,{Automatic|True->True,_->False}],OptionValue@NMIs,OptionValue@TimeConstrained,OptionValue@TimeConstraint,OptionValue@SimplifyFunction,OptionValue@Fermatica`UseFermat};
 noRules=OptionValue[jRules]@@indices;
 Declare[Evaluate@indices,Number];
 ps=Replace[PowerShifts[nm],Except[0]->1,{1}];
@@ -1902,7 +1918,7 @@ If[Not@TrueQ@Not@disksave&&diskreco&&FileExistsQ[disksave<>"/"<>file],jRulesF=Ge
 If[disksave===BasisDirectory[nm],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[BasisDirectory["<>ToString[nm]<>"]<>\"/"<>file<>"\"]"],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[\""<>disksave<>"/"<>file<>"\"]"]];LiteRedPrint["Sector ",jsect," is recovered from file"];,
 (**)
 onmis=Replace[onmis,{Automatic:>If[Contexts["Mint`"]=!={},If[IntegerQ[#],#,-1]&@Symbol["Mint`CountMIs"][jsect,Symmetric->useSR],0],n_Integer:>n,f_:>f[jsect]}];
-tcf[LiteRedPrint["Sector ",jsect];If[Not[TrueQ@Not@disksave||FileExistsQ[disksave<>"/"<>file]],If[!DirectoryQ[disksave],CreateDirectory[disksave];Message[DiskSave::dir,disksave]];Put["reserved",disksave<>"/"<>file];reserved=True];(*ptrnrule\[LongDash]replace indices with patterns*)
+Catch[tcf[LiteRedPrint["Sector ",jsect];If[Not[TrueQ@Not@disksave||FileExistsQ[disksave<>"/"<>file]],If[!DirectoryQ[disksave],CreateDirectory[disksave];Message[DiskSave::dir,disksave]];Put["reserved",disksave<>"/"<>file];reserved=True];(*ptrnrule\[LongDash]replace indices with patterns*)
 gatherRules[x_]:=Flatten[SortBy[Sort[#,(Last@#1)>(Last@#2)&]&/@Gather[{#,j[nm,##]&@@indices/.#}&/@x,MatchQ[Expand[List@@Last@#1-List@@Last@#2],{__Integer}]&(*Gather contiguous*)],{
 Length@First@First@#,(*# of fixed parameters*)
 Count[Last@First@#,_Integer],(*# of numeric indices*)
@@ -1912,10 +1928,10 @@ Flatten@Position[Take[jComplexity[Last@First@#],-nds],Except[_Integer],{1}]
 (*Prepare to solution*)
 jSector[nm]=jsect;(*set default sector for proper ordering*)
 jRulesF={};
-parameters=DeleteCases[Parameters[nm],_Integer|_Rational];(*(*Deleted 19.11.2019*)Complement[Variables[Last@Reap[Collect[ids,_j,Sow]]],indices](*/Deleted 19.11.2019*)*);
+parameters=DeleteCases[Parameters[nm],_Integer|_Rational];
 If[TrueQ[OptionValue[jGraph]],AppendTo[indicoutput,LiteRedPrintTemporary[GraphPlot[jGraph[jsect],ImageSize->Tiny]]]];
-AppendTo[indicoutput,LiteRedPrintTemporary["Parameters "<>ToString[parameters]<>" are assumed to be independent."]];
-If[onmis>=0,AppendTo[indicoutput,LiteRedPrintTemporary["Expecting "<>ToString[onmis]<>" masters."]]];
+AppendTo[indicoutput,LiteRedPrintTemporary["    Parameters "<>ToString[parameters]<>" are assumed to be independent."]];
+If[onmis>=0,AppendTo[indicoutput,LiteRedPrintTemporary["    Expecting "<>ToString[onmis]<>" masters."]]];
 If[TrueQ[OptionValue[Sharpen]],ids=Function@@{sharpen[ids@@indices]/.MapIndexed[#->Slot@@#2&,indices]}];
 (* ********************************************************************************************************)
 whenBad[expr_]:=WhenBad[expr,indices,corner,parameters];
@@ -1924,14 +1940,19 @@ jRulesF={};
 indicnr=Length[jRulesF];
 indicstime=AbsoluteTime[];
 (*LOOP OVER noRules*)
-If[$LiteRedMonitor,moni=PrintTemporary[TableForm[{{Dynamic["Spent "<>ToString[Round[AbsoluteTime[]-indicstime]]<>" seconds.",UpdateInterval->1]},Dynamic[Overlay[{ProgressIndicator[indicpb,{0,10+1/2}],ToString[indicnop]<>"\[Rule]"<>ToString[indicnopToGo]},Alignment->Center]],Dynamic[ToString[indicnr]<>" point: "<>ToString[startp]]}]]];
+If[$LiteRedMonitor,moni=PrintTemporary["    ",TableForm[{{Dynamic["Spent "<>ToString[Round[AbsoluteTime[]-indicstime]]<>" seconds"<>indicsip<>".",UpdateInterval->1]},Dynamic[Overlay[{ProgressIndicator[indicpb,{0,nds+1/2}],ToString[indicnop]<>"\[Rule]"<>ToString[indicnopToGo]},Alignment->Center]],Dynamic[ToString[indicnr]<>" point: "<>ToString[startp]]}]]];
 While[
 noRules=!={},
 (*Consider first case*)
 case=First@noRules;(*case will be a list*)
 noRules=Rest@noRules;
 startp=indices/.case;(*startp will be a list*)
-If[indicpb<Length@case,indicpb=Length@case;LiteRedPrintTemporary[ToString[nds-indicpb]<>" symbolic indices after "<>ToString[Round[AbsoluteTime[]-indicstime]]<>" seconds."]];
+indicspent=Round[AbsoluteTime[]-indicstime];
+If[indicpb<Length@case,indicpb=Length@case;indicsip=indicsip<>", "<>ToString[nds-indicpb]<>"@"<>ToString[indicspent](*LiteRedPrintTemporary[ToString[nds-indicpb]<>" symbolic indices after "<>ToString[indicspent]<>" seconds."]*)];
+tctr=Select[tct,First[#]<nds-indicpb&];
+If[tctr=!={}&&tctr[[1,2]]<indicspent,LiteRedPrint["Exceeded time limit ("<>ToString[tctr[[1,2]]]<>") for restricting to "<>ToString[tctr[[1,1]]]<>" symbolic indices. Exiting SolvejSector with $Failed\[Ellipsis]\n\n"];Throw[$Failed]];
+If[tctr==={},tc1=Infinity,tc1=tctr[[1,2]]-indicspent+1];
+TimeConstrained[
 numeric=FreeQ[startp,Alternatives@@indices];
 found=False;
 If[!numeric||Length[misFound]+Length[noRules]>=onmis,(* check if the case falls into the more general *)If[(fr=Select[rulesFound,TrueQ[First[#]/.case]&&Not[TrueQ[Simplify[Last[#]/.case]]]&,1])=!={},(* better sorting desired *)noRules=gatherRules[deleteSpecific[{ToRules@smartReduce[LogicalExpand[RulesToCondition[noRules]||RulesToCondition[{case}]&&fr[[1,2]]]]}]];Continue[]];
@@ -1977,14 +1998,19 @@ If[++depth>searchDepth&&depth<=maxDepth&&!numeric,searchDepth=depth;AppendTo[ind
 If[!found,
 AppendTo[indicoutput,LiteRedPrintTemporary["Found master integral "<>ToString[startp]]];AppendTo[misFound,j[nm,##]&@@startp];
 ]
+,tc1,LiteRedPrint["Exceeded time limit ("<>ToString[tctr[[1,2]]]<>") for restricting to "<>ToString[tctr[[1,1]]]<>" symbolic indices. Exiting SolvejSector with $Failed\[Ellipsis]\n\n"];Throw[$Failed]]
 ];
-If[$LiteRedMonitor,NotebookDelete[moni]];
-,tc,If[!numeric,
-If[reserved,DeleteFile[disksave<>"/"<>file]];Return[$Failed],
-misFound=j[nm,##]&@@indices/.#&/@{ToRules[LogicalExpand@Reduce[Not[Or@@jRulesF[[All,1,2]]]&&And@@constr,Integers]]};If[!FreeQ[misFound,Alternatives@@indices],Message[SolvejSector::leak,misFound]]]];
+If[$LiteRedMonitor,NotebookDelete[moni]];numeric=True;
+,tc,Unevaluated[LiteRedPrint["Exceeded time limit ("<>tc<>") for solving the sector. Exiting SolvejSector with $Failed\[Ellipsis]\n\n"];Throw[$Failed]]]
+];
+If[!numeric,
+If[reserved,DeleteFile[disksave<>"/"<>file]];
+Quiet[NotebookDelete[moni]];
+Return[$Failed]];
 If[TrueQ[Not[disksave]],(#1/:jRules[##]=jRulesF),If[!DirectoryQ[disksave],CreateDirectory[disksave];Message[DiskSave::dir,disksave]];If[!FileExistsQ[disksave<>"/"<>file]||OptionValue[Replace],If[!reserved&&FileExistsQ[disksave<>"/"<>file],Message[DiskSave::overwrite,disksave<>"/"<>file]];
 Put[Unevaluated[Last[{#1,#2}]],#3]&[jsOrder@@jsect,jRulesF,disksave<>"/"<>file];
-If[disksave===BasisDirectory[nm],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[BasisDirectory["<>ToString[nm]<>"]<>\"/"<>file<>"\"]"],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[\""<>disksave<>"/"<>file<>"\"]"]]]]&@@jsect;fr=Reduce[Not[Or@@(And@@Thread[indices==Rest[List@@#]]&/@misFound)||Or@@jRulesF[[All,1,2]]]&&And@@constr,Integers];If[Not[TrueQ[Not[fr]]],Message[SolvejSector::leak,j[nm,##]&@@indices/.{ToRules[LogicalExpand@fr]}]];];MIs[nm]^=jVars[{DeleteCases[MIs[nm],_?(jSector[#]===jsect&)],misFound},Sort->jSector];
+If[disksave===BasisDirectory[nm],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[BasisDirectory["<>ToString[nm]<>"]<>\"/"<>file<>"\"]"],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[\""<>disksave<>"/"<>file<>"\"]"]]]]&@@jsect;
+misFound=j[nm,##]&@@indices/.#&/@{ToRules[LogicalExpand@Reduce[Not[Or@@jRulesF[[All,1,2]]]&&And@@constr,Integers]]};If[!FreeQ[misFound,Alternatives@@indices],Message[SolvejSector::leak,misFound]](*;fr=Reduce[Not[Or@@(And@@Thread[indices\[Equal]Rest[List@@#]]&/@misFound)||Or@@jRulesF[[All,1,2]]]&&And@@constr,Integers];If[Not[TrueQ[Not[fr]]],Message[SolvejSector::leak,j[nm,##]&@@indices/.{ToRules[LogicalExpand@fr]}]];*)];MIs[nm]^=jVars[{DeleteCases[MIs[nm],_?(jSector[#]===jsect&)],misFound},Sort->jSector];
 LiteRedPrint["    "<>ToString["jRules"@@jsect]<>" \[LongDash] reduction rules for the sector.\n    MIs["<>ToString[nm]<>"] \[LongDash] list of master integrals appended with "<>ToString[Length@misFound]<>" integrals"<>If[misFound==={},"."," ("<>StringTrim[ToString[misFound]," "|"{"|"}"]<>")."]];NotebookDelete/@indicoutput;
 Switch[OptionValue[GeneratedCell],
 Close,
@@ -2214,8 +2240,8 @@ jSector[Symbol$basis]=js$sector;jRulesF={};
 Function$identities=Join@@(Through[orrs@@List$indices]);(*/Modified*)
 List$parameters=Complement[Variables[Last@Reap[Collect[Function$identities,_j,Sow]]],List$indices];
 If[TrueQ[OptionValue[jGraph]],AppendTo[indication$outputToDelete,LiteRedPrintTemporary[GraphPlot[jGraph[js$sector],ImageSize->Tiny]]]];
-AppendTo[indication$outputToDelete,LiteRedPrintTemporary["Parameters "<>ToString[List$parameters]<>" are assumed to be independent."]];
-If[onmis>=0,AppendTo[indication$outputToDelete,LiteRedPrintTemporary["Expecting "<>ToString[onmis]<>" masters."]]];
+AppendTo[indication$outputToDelete,LiteRedPrintTemporary["    Parameters "<>ToString[List$parameters]<>" are assumed to be independent."]];
+If[onmis>=0,AppendTo[indication$outputToDelete,LiteRedPrintTemporary["    Expecting "<>ToString[onmis]<>" masters."]]];
 Function$identities=Function@@{sharpen[Function$identities]/.MapIndexed[#->Slot@@#2&,List$indices]};List$signs=(1-2IntegerDigits[#,2,Integer$NDs])&/@Range[0,2^Integer$NDs-1];
 (*whenBad*)whenBad[expr_]:=Module[{jl=Cases[CollectjList[expr],{tt_j,_}(*Added 31.05.2016*)(*/;!jSector[tt]<js$sector(*
 Definitely erroneous attempt: in particular dropped terms may have zeros in the denominators*)*)(*/Added 31.05.2016*)],dconds,nconds},dconds=LogicalExpand[Or@@(And@@Thread[0==Flatten[{CoefficientList[#,List$parameters]}]]&/@Union@@((First/@FactorList[#])&/@Denominator/@Last/@jl))];nconds={#2,smartReduce[Or@@Thread[Pick[List@@#1,js$sector,0]>=1]]}&@@@jl;If[MemberQ[nconds,{_,True}],Return[True]];nconds=Or@@Flatten@Cases[nconds,{b_,a:Except[False]}:>Cases[Replace[{a},Or->Sequence,{2},Heads->True],x_/;0=!=Expand[Numerator[b]/.ToRules[x]]]];(*LogicalExpand@*)smartReduce[LogicalExpand[dconds||nconds]]];(*/whenBad*)(*smartReduce*)smartReduce[expr_]:=Module[{exprl=Replace[{expr},Or->Sequence,{2},Heads->True],t,v,l},
@@ -3142,7 +3168,7 @@ StyleBox[\"expr\", \"TI\"]\) applying rules found by FindSymmetries and SolvejSe
 (*DWeight::usage="DWeight\[Rule]n  is an option for IBPReduce which determines the extra priority points for each denominator.";*)
 
 
-Options[IBPReduce]={jExtRules->True,jSector->_,jRules->jRules};
+Options[IBPReduce]={jExtRules->True,jSector->_,jRules->jRules,Fermatica`UseFermat->False};
 
 
 IBPReduce[expr_,OptionsPattern[]]:=Module[
@@ -3158,12 +3184,15 @@ t1,t2,jrules,jrules1,jrules2,rc,
 pos,mis={},
 nr=0,nr1=0,level,
 lvl,
-status
+status,
+together
 },
 (*hjsec=Sort MaximalBy*)
 Block[{jRules(*Modified 02.12.2016*),jRulesDen(*/Modified 02.12.2016*)},
 jRules[__]={};(*Added 02.12.2016*)jRulesDen[__]={};(*/Added 02.12.2016*)
 extrules=OptionValue[jExtRules];
+(*Added 08.02.2020*)
+together=If[TrueQ[OptionValue[Fermatica`UseFermat]],Fermatica`FTogether,Together];(*/Added 08.02.2020*)
 (*\:0441\:043e\:0437\:0434\:0430\:0451\:043c \:0440\:0430\:0431\:043e\:0447\:0443\:044e \:0434\:0438\:0440\:0435\:043a\:0442\:043e\:0440\:0438\:044e*)
 While[DirectoryQ[dir="IBPReduction"<>ToString[++i]],Continue[]];CreateDirectory[dir];(*\:0441\:043e\:0431\:0438\:0440\:0430\:0435\:043c \:0432\:0441\:0435 j, \:043e\:043f\:0440\:0435\:0434\:0435\:043b\:044f\:0435\:043c \:0441\:043b\:043e\:0436\:043d\:0435\:0439\:0448\:0438\:0439 \:0441\:0435\:043a\:0442\:043e\:0440*)
 CheckAbort[
@@ -3270,7 +3299,7 @@ Scan[(
 t1=#/.Dispatch[jrules1];
 (*status="Finished substituing!";*)
 (*status="Collecting!";*)
-t1=(#1->Collectj[#2,Together,SimplifyAlways->False])&@@@t1;
+t1=(#1->Collectj[#2,together,SimplifyAlways->False])&@@@t1;
 jrules1=Join[jrules1,t1];
 nr1+=Length@t1
 (*status="Finished collecting!";*)
@@ -3284,7 +3313,7 @@ Put[{Length@#,#}&@Pick[jrules1,jrules,True],dir<>"/"<>ToString[#1]];
 ],
 TableForm[{{Overlay[{ProgressIndicator[nr1,{0,nr}],nr1},Alignment->Center]},{jsec}}]
 ];
-res=Collectj[Get[dir<>"/res"][[-1,1,-1]],Together,SimplifyAlways->False],
+res=Collectj[Get[dir<>"/res"][[-1,1,-1]],together,SimplifyAlways->False],
 res:=Abort[]
 ];
 DeleteDirectory[dir,DeleteContents->True];
@@ -3311,7 +3340,7 @@ matr=Append[matr,Coefficient[mis,First@mis1]];
 If[MatrixRank@matr<Length@matr,matr=Most[matr],AppendTo[nmis,First@mis1]];
 mis1=Rest@mis1;
 ];
-Return[Collectj[Thread[mis->If[OptionValue[Fermatica`UseFermat],FInverse[matr],Inverse[matr]].nmis],Factor]]
+Return[DeleteCases[Collectj[Thread[mis->If[OptionValue[Fermatica`UseFermat],FInverse[matr],Inverse[matr]].nmis],Factor],HoldPattern[a_->a_]]]
 ]
 
 
@@ -3415,62 +3444,43 @@ jGraph::nograph="No graph, sorry.";
 jGraph::nums="The numerator is not drawn!.";
 
 
-Options[jGraph]={Number->False,Label->None};
-
-
 jGraph[_Symbol]:={};
 
 
-jGraph[js[nm_,x:(0|1)..],OptionsPattern[]]:=Module[{graph=None,jsect=jSector[j[nm,x]],contracted,newv,tmp,edge,i=0,lab},
-lab=Replace[OptionValue[Label],{None->{},o:Except[_List]:>{o}}];
-If[OptionValue[Number],AppendTo[lab,Number]];
-Catch[Scan[(If[jsect<=First[#],
-contracted=Reverse@Sort@Flatten@Position[DeleteCases[Rest[List@@jsect+List@@First[#]],0],1,{1}];
-graph=Last[#];
-If[lab=!={},
-MapIndexed[(graph[[First@#2,2]]={If[MemberQ[lab,Number],First@#1,Unevaluated[Sequence[]]],graph[[First@#2,2]],If[MemberQ[lab,Dot],0,Unevaluated[Sequence[]]]})&,Position[Rest[List@@First@#],1]]
-];
-Throw[graph]])&,
-jGraph[nm]
-]];
-If[graph===None,Message[jGraph::nograph];Return[]];
-(*Now we contract all lines*)
-Scan[(graph=Function[{e,l},{e/.(graph[[#,1]]/.(DirectedEdge|UndirectedEdge)->Rule),l}]@@@Delete[graph,#])&,contracted];
-graph
-]
-
-
-jGraph[j[{nm_,d_},x__],opts:OptionsPattern[]]:=jGraph[j[nm,x],opts];
+Options[jGraph]={Label->Label,(*can be any sane expression involving Label, Number, Dot, e.g. Label\[Rule]{Label,Number,Dot}. External legs always remain to be just a Label*)
+Dot->False(**)};
 
 
 jGraph[j[nm_Symbol,x__],OptionsPattern[]]:=Module[{graph=None,jsect=jSector[j[nm,x]],contracted,newv,tmp,edge,i=0,lab},
-lab=Replace[OptionValue[Label],{None->{},o:Except[_List]:>{o}}];
-If[OptionValue[Number],AppendTo[lab,Number]];
+lab=OptionValue[Label];
 Catch[Scan[(If[jsect<=First[#],
 contracted=Reverse@Sort@Flatten@Position[DeleteCases[Rest[List@@jsect+List@@First[#]],0],1,{1}];
 graph=Last[#];
-If[MemberQ[lab,Number],
-MapIndexed[(graph[[First@#2,2]]={First@#1,graph[[First@#2,2]]})&,Position[Rest[List@@First@#],1]]
-];
+MapIndexed[(graph[[First@#2,2]]={Label->graph[[First@#2,2]],Number->First@#1,Dot->0})&,Position[Rest[List@@First@#],1]];
 Throw[graph]])&,
 jGraph[nm]
 ]
 ];
-If[graph===None,Message[jGraph::nograph];Return[]];
+If[graph===None,Message[jGraph::nograph];Return[{}]];
 (*Now we contract all lines*)
 Scan[(graph=Function[{e,l},{e/.(graph[[#,1]]/.(DirectedEdge|UndirectedEdge)->Rule),l}]@@@Delete[graph,#])&,contracted];
-If[MemberQ[lab,Dot],
-MapIndexed[(graph[[First@#2,2]]=If[MatchQ[graph[[First@#2,2]],_List],Append[graph[[First@#2,2]],#1-1],graph[[First@#2,2]]={graph[[First@#2,2]],#1-1}])&,DeleteCases[{x},_?NonPositive]]
+If[OptionValue[Dot],
+MapIndexed[(graph[[First@#2,2,3]]=Dot->#1-1)&,DeleteCases[{x},_?NonPositive]]
 ,
-(*Now we need to put dots*)
-newv=Max[Cases[graph,_Rule,\[Infinity]]/.Rule->Sequence]+1;(*unique new vertex index*)
-MapIndexed[(For[tmp=#1,tmp>1,tmp--,AppendTo[graph,graph[[First[#2]]]/.{HoldPattern[Rule[v1_,v2_]]:>(Rule[newv,v2])}];
-graph[[First[#2]]]=graph[[First[#2]]]/.{HoldPattern[Rule[v1_,v2_]]:>(Rule[v1,newv++])};
+(*Now we need to add segments for dots*)
+newv=Max[Cases[First/@graph,_Rule,\[Infinity]]/.Rule->Sequence]+1;(*unique new vertex index*)
+MapIndexed[(For[tmp=#1,tmp>1,tmp--,AppendTo[graph,MapAt[#/.{HoldPattern[Rule[v1_,v2_]]:>(Rule[newv,v2])}&,graph[[First[#2]]],{1}]];
+graph[[First[#2],1]]=graph[[First[#2],1]]/.{HoldPattern[Rule[v1_,v2_]]:>(Rule[v1,newv++])};
 ])&,DeleteCases[{x},_?NonPositive]]
 ];
+graph=If[MatchQ[#1,_?Positive->_?Positive],{#1,lab/.#2},{#1,#2}]&@@@graph;
+(*graph[[;;Count[{x},_?Positive],2]]=OptionValue[Label]/.graph[[;;Count[{x},_?Positive],2]];*)
 If[Cases[{x},_?Negative]!={},Message[jGraph::nums]];
 graph
 ]
+
+
+jGraph[js[nm_,x:(0|1)..],opts___]:=jGraph[j[nm,x],opts]
 
 
 todo["jGraph: make better treatment for dots and edge numbers. Maybe even to write a dedicated procedure for printing graphs."];
@@ -3492,14 +3502,14 @@ StyleBox[\"dens\", \"TI\"]\)} and loop momenta {\!\(\*
 StyleBox[\"lms\", \"TI\"]\)}.";
 
 
-Options[FeynParUF]={Function->False (*Whether to present result in the form of a pure function*),NamingFunction->(Array[Symbol["x"<>ToString[#]]&,{#}]&)};
+Options[FeynParUF]={Function->False (*Whether to present result in the form of a pure function*),NamingFunction->(Array[Symbol["x"<>ToString[#]]&,{#}]&),Sign->Plus};
 
 
 FeynParUF::valued="Parameters should all be symbols. Meanwhile, they are `1`.\nUse NamingFunction\[Rule](Table[Unique[],{#}]&) option if you want to be guaranted from this.";
 
 
 FeynParUF[dsl_List,lms_List,OptionsPattern[]]:=Module[
-{xs,ds=Flatten@dsl,den,t1,t2,dt2,a},
+{xs,ds=Flatten@dsl,den,t1,t2,dt2,a,\[Sigma]=Replace[OptionValue[Sign],{Plus->1,Minus->-1}]},
 xs=Table[Unique["x"],{Length@ds}];
 (*xs=OptionValue[NamingFunction][Length@ds];*)
 Declare[Evaluate@xs,Number];
@@ -3513,7 +3523,7 @@ t2=Together[(dt2*den/.Thread[lms->0])-LFDistribute@Inner[sp,t1,Together[dt2*Inve
 If[OptionValue[Function],
 Function@@{{dt2,t2}/.Thread[xs->(Slot/@Range[Length@ds])]},
 If[!MatchQ[xs,{__Symbol}],
-Message[FeynParUF::valued,xs];{dt2,t2,Unflatten[xs,dsl]},{dt2,t2,Unflatten[xs,dsl]}/.Thread[xs->OptionValue[NamingFunction][Length@ds]]
+Message[FeynParUF::valued,xs];{\[Sigma]*dt2,\[Sigma]*t2,Unflatten[xs,dsl]},{\[Sigma]*dt2,\[Sigma]*t2,Unflatten[xs,dsl]}/.Thread[xs->OptionValue[NamingFunction][Length@ds]]
 ]
 ]
 ]
@@ -3607,12 +3617,43 @@ Function@@{{U,Collect[F-M U,xs],M,xs}/.MapIndexed[#->Slot[First[#2]]&,xs]},
 ]
 
 
-GramP::usage="GramP[\!\(\*
-StyleBox[\"basis\", \"TI\"]\)] gives Gram polynomial G(\!\(\*SubscriptBox[
+GramM::usage="GramM[\!\(\*
+StyleBox[\"basis\", \"TI\"]\)] gives the Gram matrix \!\(\*
+StyleBox[\"M\", \"TI\"]\)=G(\!\(\*SubscriptBox[
 StyleBox[\"l\", \"TI\"], \(1\)]\),\[Ellipsis],\!\(\*SubscriptBox[
 StyleBox[\"l\", \"TI\"], \(L\)]\),\!\(\*SubscriptBox[
 StyleBox[\"p\", \"TI\"], \(1\)]\),\[Ellipsis],\!\(\*SubscriptBox[
-StyleBox[\"p\", \"TI\"], \(E\)]\)) expressed in terms of denominators."
+StyleBox[\"p\", \"TI\"], \(E\)]\)) expressed in terms of denominators. GramM[js[\!\(\*
+StyleBox[\"basis\", \"TI\"]\),0,1,\[Ellipsis]] gives the Gram matrix constrained to zero denominators of the sector."
+
+
+Options[GramM]={NamingFunction->(Array[ToExpression["d"<>ToString[#]]&,{#}]&),PolyNForm->False};
+
+
+GramM::valued="Parameters should all be symbols. Meanwhile, they are `1`.\nUse NamingFunction\[Rule](Table[Unique[],{#}]&) option if you want to be guaranted from this.";
+
+
+GramM[jsec_js,opts:OptionsPattern[]]:=Module[{poly,ds},
+{poly,ds}=GramM[First@jsec,opts];
+{Factor[poly/.Thread[Pick[ds,Rest@jsec,1]->0]],Pick[ds,Rest@jsec,0]}
+];
+GramM[nm_,OptionsPattern[]]:=Module[
+{ds,qs,res},
+ds=OptionValue[NamingFunction][Length@Ds[nm]];If[!MatchQ[ds,{___Symbol}],Message[GramM::valued,ds]];Declare[Evaluate@ds,Number];qs=Join[LMs[nm],EMs[nm]];
+res=Outer[sp,qs,qs]/.(*Thread[SPs[nm]\[Rule]Toj[nm,SPs[nm]]*)(Toj[nm]/.{j[nm,0...]->1,j[nm,x__]:>ds[[1+LengthWhile[{x},#===0&]]]})(*]*);If[OptionValue[PolyNForm],
+{PolyNForm[res,ds],ds},
+{res,ds}
+]
+];
+
+
+GramP::usage="GramP[\!\(\*
+StyleBox[\"basis\", \"TI\"]\)] gives the Gram polynomial G(\!\(\*SubscriptBox[
+StyleBox[\"l\", \"TI\"], \(1\)]\),\[Ellipsis],\!\(\*SubscriptBox[
+StyleBox[\"l\", \"TI\"], \(L\)]\),\!\(\*SubscriptBox[
+StyleBox[\"p\", \"TI\"], \(1\)]\),\[Ellipsis],\!\(\*SubscriptBox[
+StyleBox[\"p\", \"TI\"], \(E\)]\)) expressed in terms of denominators. GramM[js[\!\(\*
+StyleBox[\"basis\", \"TI\"]\),0,1,\[Ellipsis]] gives the Gram polynomial constrained to zero denominators of the sector."
 
 
 Options[GramP]={NamingFunction->(Array[ToExpression["d"<>ToString[#]]&,{#}]&),PolyNForm->False};
@@ -4174,10 +4215,10 @@ jsorder=PadLeft[jsorder,Length@{n}+1,1];(*just in case*)
 num=First@jsorder;jsorder=Rest[jsorder];
 {jsec1,jsec}={permute[jsec1,jsorder],permute[jsec,jsorder]};
 Return[{nm,Plus@@jsec,jsec0,Plus@@(#*(1-jsec)),-num*#.jsec,Sequence@@(-#)}&[jsec1*(2 jsec-1)]]
-(*/DEPRECATED branch*)
+(*/DEPRECATED branch*) 
 ]
 ];
-jComplexity[j1_j,j2_j]:=Expand[jComplexity@j1-jComplexity@j2];
+jComplexity[j1_j,j2_j]:=ReplacePart[Expand[jComplexity@j1-jComplexity@j2],1->Signature[{First@j2,First@j1}]];
 Module[{(*debug,*)sec=List@@Rest@sect,dim=Length@sect-1,rsrvd=False,inds,scond,numcond,indication$numberOfPoints=0,indication$numberOfPointsToGo=0,n=0,pds,nds,sec1,List$signs,indication$outputToDelete={},mis={},nmis,nm=First@sect,Bool$numericIndices,secS=ToString[HoldForm[jRulesDen[##]]&@@sect],NoRules={{}},nrordrd,FoundRules={},params,d=MetricTensor[],ndepth,ids,rules1,rules2,startp,pat1,ptrnrule,jRules1,jRulesF,jRulesDB,pos,searchDepth,useSR,sr,recover,continue,mir,nr,fr,tcnd,ds,dr,onmis,tc,tcf,sjopts,whenBad,smartReduce,smartReduce1,eqr,cf,fromRules,expandRules,found,depth,npower},
 CheckAbort[
 (*init*)
@@ -5038,8 +5079,9 @@ layer[l_Integer,d_Integer]:=Differences@Join[{0},#1,{d+l}]&/@Subsets[Range[d+l-1
 diamond[l_Integer,d_Integer]:=Module[{list},Flatten[Outer[list,Sequence@@Replace[#,{n_?Positive:>{n,-n},n_:>{n}},{1}]]&/@layer[l,d]]/.list->List]
 
 
+If[True@Global`$LiteRedToDo,
 CellPrint[Cell["TODO list:", "Text", CellFrame->{{0, 0}, {0, 1}}]];
-Print[Style["\[FilledSmallCircle] "<>#,{"Text",Small}]]&/@todolist;
+Print[Style["\[FilledSmallCircle] "<>#,{"Text",Small}]]&/@todolist];
 
 
 End[]
