@@ -38,62 +38,15 @@ Function Lastrow(m,i,last,j) =
   od;
   last.;
 
-Function Addrow(mat,rows,ind,till,i,j) =
-  {`
-  Addrow([m],[m1],i) adds i-th row of matrix m1 to matrix m and performs Rowech. `
-  Addrow([m],[m1],i) should be equivalent to Addrows([m],[m1],i-1,i)`
-  }
-  if till=0 then till := Rows[mat] fi;
-  for j = [rows]ind do
-    mat[till,j] := rows[ind,j];
-  od;
-  Rowech([mat]);
-  {return last row #}
-  till:=Lastrow([mat],till);
-  till.;
-
-Function Addrows(mat,rows,skip,last,off,i,j) =
-  { `
-    Addrows([m],[r]) adds new rows to matrix m and performs Rowech.`
-    Addrows([m],[r],sk) skips first sk rows of [r] `
-    Addrows([m],[r],sk,l) takes rows sk+1,sk+2,...,r of l `
-  }
-  if last=0 then last := Lastrow([rows]) fi;
-  last:-(skip);
-  if off=0 then off := Rows[mat]-last fi;
-  for i = 1,last do
-    skip:+;
-    off:+;
-    for j = [rows]skip do
-      mat[off,j] := rows[skip,j];
-    od
-  od;
-  Rowech([mat]);
-  {return last row #}
-  off:=Lastrow([mat],off);
-  off.;
-
-
-; Accel is the acceleration function:
-; If lst=[x,dx,ddx,...], it recalculates
-; x:=x+dx, dx=dx+ddx,...
-Function Accel(lst,i) =
-  for i=1,Cols[lst]-1 do
-    lst[i]:= lst[i] + lst[i+1]
-  od;
-  0.;
-
-
-; Rpos(eqs,list) returns the index of the first row with first nonzero column index being in list.
+; Rpos(eqs,list) returns the index of the first row with
+; first nonzero column index being in list.
 Function Rpos(eqs,list,r,i,j,k) =
   if r=0 then
     r := Rows[eqs]
   fi;
   for i = 1,r do
     for j = [eqs]i do
-      if list[1,j]=1 then
-        k := i
-      fi;
+      if list[1,j]=1 then k := i fi;
       & >;
     od;
     if k>0 then &> fi;
@@ -165,67 +118,109 @@ Function RareCopy(new,mat,inds,off,skip,lst,i,j) =
   lst.;
 
 
+Function IncRowech(mat,eqs,ind,off,perm,h,h1,i,p,j,l,w,c) =
+  {
+      IncRowech --- incremental row echelon form.`
+  }
+  w := Cols[eqs];
+  {copy eq}
+  Array eq [1,w] Sparse;
+  for j = [eqs]ind do eq[1,j] := eqs[ind,j] od;
+  {leftmost column}
+  h := Firstcol([eq],1);
+  {# of rows}
+  l := Lastrow([mat]);
+  while h>0 do
+    {search for an equation with the same leftmost column}
+    for p = 1,l+1 do
+      if h = 0 then &> fi;
+      i := perm[p];
+      h1 := Firstcol([mat],i);
+      if h1=0 then h1 := w+1 fi;
+
+      if h < h1 then
+        {add new row}
+        off:+;
+        for j = [eq]1 do mat[off,j] := eq[1,j] od;
+        {recalculate perm}
+        for j = l,p,-1 do perm[j+1]:=perm[j] od;
+        perm[p]:=off;
+        h:=0;
+        &>
+      else if h = h1 then
+        {modify new row}
+        c := - eq[1,h]/mat[i,h];
+        Array eq1 [1,w] Sparse;
+        for j = [mat]i do eq1[1,j] :=mat[i,j] od;
+        [eq] := [eq] + c*[eq1];
+        @[eq1];
+        h := Firstcol([eq],1);
+      fi fi;
+    od
+  od;
+  @([eq]);
+  {return last row #}
+  off.;
+
 
 ; Hound
-Function Fetch(from, lst, till, off) =
+Function Fetch(from, lst, off,w) =
   { `
     1. db=[ ], remap=[ ], eqs=[*]: clean start`
     2. db=[*], remap=[ ], eqs=[*]: continue same level`
     3. db=[*], remap=[*], eqs=[*]: continue new level`
   }
+  w := Cols[eqs];
   lst := Lastrow([eqs]);
   off := Lastrow([db]);
-    @[rule]; Array rule[1,1] Sparse;
   if off=0 then
-    @[db]; Array db[lst+1,Cols[eqs]] Sparse
+    @[db]; Array db[lst,w] Sparse;
+    Array perm[lst];
+    [perm]:=lst
   else
     {continuing}
     {reinit db}
-    Array dbnew[off+lst,Cols[eqs]] Sparse;
+    Array dbnew[off+lst,w] Sparse;
     if Lastrow([remap])=0 then
       {no remapping needed}
       SparseCopy([dbnew],[db],0,0,off)
     else
       RareCopy([dbnew],[db],[remap],0,0,off)
     fi;
+    {permutations}
+    Array perm1[off+lst];
+    [perm1]:=off+lst;
+    [perm1[~off]]:=[perm[~off]];
+    @[perm];Rname[perm1]:='[perm]';
     @[db];Rname[dbnew]:='[db]'
   fi;
+  @[remap];
   while from<lst do
     {check whether there is already a rule}
     rpos := Rpos([db],[wanted],off);
     if rpos>0 then &> fi;
     {not found yet, add rules}
-    Accel([dyn]);
-    till := from+dyn[1];
-    if till>lst then till := lst fi;
-    if off+till-from>Rows[db] then
-      !!('increasing size to ',$(1.6*Rows[db]));
-      Array dbnew[$(1.6*Rows[db]),Cols[db]] Sparse;
-      SparseCopy([dbnew],[db]);
-      @([db]);
-      Rname[dbnew]:='[db]'
-    fi;
-    off:=Addrows([db],[eqs],from,till,off);
-    !!(till-from,' eqs solved.');
-    from := till;
+    from:+;
+    off:=IncRowech([db],[eqs],from,off,[perm]);
+    !!('1 eqs solved.');
   od;
-  @[remap];
   if rpos>0 then
-    !!('[',rpos,',',Firstcol([db],rpos),']');
-    {SAVING RESULTS}
     {save rule}
-    @[rule]; Array rule[1,Cols[eqs]] Sparse;  {respawn}
+    @[rule]; Array rule[1,w] Sparse;  {respawn}
     SparseCopy([rule],[db],0,rpos-1,rpos);
     {save remaing eqs}
-    if lst>till then
+    if lst>from then
       {some equations left}
-      Array remap[1,Cols[eqs]] Sparse;
-      Array eqsr[lst-till,Cols[eqs]] Sparse;
-      SparseCopy([eqsr],[eqs],0,till,lst);
+      Array remap[1,w] Sparse;
+      Array eqsr[lst-from,w] Sparse;
+      SparseCopy([eqsr],[eqs],0,from,lst);
       @[eqs]; Rname[eqsr] := '[eqs]'
+    else
+      {all equations are solved}
+      @[eqs]
     fi
   else
-    @[rule]; Array rule[1,Cols[eqs]] Sparse;
+    @[rule]; Array rule[1,w] Sparse;
     @[eqs]
   fi;
   @[wanted];{always reappend wanted}
