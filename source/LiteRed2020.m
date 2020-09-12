@@ -246,7 +246,7 @@ LoweringDRR;RaisingDRR;(*Now LoweringDRR[nm] will give a rule*)
 LowerDim;RaiseDim;
 
 
-Dinv;
+Dinv;MakeDSystem
 
 
 $LiteRedLog::usage="$LiteRedLog=True turns on some log information of the package.";
@@ -3980,6 +3980,17 @@ tojps[nm,If[p=!=q,1,1/2]*(sp[#,djdp]&/@em).Inverse[Outer[sp,em,em]].D[em,q]]
 
 fromjps[jj_]:=Fromj[jj]/Times@@(Ds[First[jj]]^PowerShifts[First[jj]])
 tojps[nm_,jj_]:=Toj[nm,Factor[Times@@(Ds[nm]^PowerShifts[nm])*jj]]
+
+
+MakeDSystem::err="Forgotten tomis? The derivative is not expressed via `1`.";
+
+
+MakeDSystem[{mis_List,tomis_List}|mis_List,tomis1_List:{},x_]:=Module[{tomis2=Replace[{tomis},{{}->tomis1,{tm_List}:>tm}],eqs,Mi},
+eqs=IBPReduce[Dinv[mis,x]]/.tomis2;
+Mi=Outer[Coefficient,eqs,mis];
+If[!MatchQ[Collectj[eqs-Mi.mis,Factor],{0..}],Message[MakeDSystem::err,mis]];
+Mi
+]
 
 
 ToDShifts::usage="ToDShifts[\!\(\*
