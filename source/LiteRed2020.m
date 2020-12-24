@@ -69,6 +69,8 @@ PowerShifts;(*additions to power of denominators*)
 
 
 NewDsSet;
+NewDsBases;
+SetToBasesRule;
 DsSetQ;
 
 Relations;
@@ -164,7 +166,8 @@ AnalyzeSectors;
     SimpleSectors;
     BasisSectors;
     ZerojRule;
-   CutDs;
+    CutDs;
+    BiggestSectors;
 (*AnalyzeSectorsFP;*)
 
 
@@ -207,6 +210,7 @@ FindExtSymmetries;
 
 AttachGraph;
 jGraph;
+GraphSort;
 
 
 GenerateFeynParUF;
@@ -383,10 +387,11 @@ CurrentState/:Set[CurrentState[nm_Symbol,x_List],y_]:=((CurrentState[nm,#1]=#2)&
 
 
 NewDsSet::usage="NewDsSet[\!\(\*
-StyleBox[\"set\", \"TI\"]\),\*
+StyleBox[\"dsset\", \"TI\"]\),\*
 StyleBox[\(\!\(\*
-StyleBox[\"denominators\", \"TI\"]\)_List\)],\!\(\*
-StyleBox[\"loopmomenta\", \"TI\"]\)_List] determines a set of propagators.\nThe difference with the basis is that linear relations between denominators are allowed in the set.\nFirst argument is a name of the set.\nSecond argument is a set of denominators. Shortcuts are allowed here: for the massless propagator sp[l,l] just put l in the list. sp[a,b] stands for the scalar product of two vectors, sp[a] is a shortcut for sp[a,a].\nThird argument is the list of loop momenta.\nOptions:\n    Append\[Rule]False|True \[LongDash] determines whether to append irreducible numerators if needed.\n    Directory\[Rule]False|\!\(\*
+StyleBox[\"denominators\", \"TI\"]\)_List\)],\*
+StyleBox[\(\!\(\*
+StyleBox[\"loopmomenta\", \"TI\"]\)_List\)]] determines a set of propagators.\nThe difference with the basis is that linear relations between denominators are allowed in the set.\nFirst argument is a name of the set.\nSecond argument is a set of denominators. Shortcuts are allowed here: for the massless propagator sp[l,l] just put l in the list. sp[a,b] stands for the scalar product of two vectors, sp[a] is a shortcut for sp[a,a].\nThird argument is the list of loop momenta.\nOptions:\n    Append\[Rule]False|True \[LongDash] determines whether to append irreducible numerators if needed.\n    Directory\[Rule]False|\!\(\*
 StyleBox[\"dirname\", \"TI\"]\) \[LongDash] determines the directory in which the basis is saved.";
 
 
@@ -398,14 +403,21 @@ DsSetQ[_]=False;
 
 
 Relations::usage="Relations[\!\(\*
-StyleBox[\"set\", \"TI\"]\)] gives a set of relations between the denominators of the \!\(\*
+StyleBox[\"dsset\", \"TI\"]\)] gives a set of relations between the denominators of the \!\(\*
 StyleBox[\"set\", \"TI\"]\).";
 
 
 PowerShifts[nm_?DsSetQ]:=PowerShifts[nm]=ConstantArray[0,Length@Ds[nm]]
 
 
-Options[NewDsSet]={Directory->False,Append->False,PowerShifts->None,SectorsPattern->{___}};
+Options[NewDsSet]={
+Directory->False,
+Append->False,
+PowerShifts->None,
+	CutDs->Automatic,
+SectorsPattern->{___},
+(*Added 21.12.2020*)jsOrder->{"np","cp","-ds","-ns"}(*/Added 21.12.2020*)
+};
 
 
 NewDsSet::nums="The set of denominators is not a basis.\nAdd irreducible numerator(s) `1`, or try your own set of `2` numerator(s).\nAborting...";
@@ -413,9 +425,9 @@ NewDsSet::ovrw="Warning: definitions for `1` has been found. They may interfere 
 NewDsSet[nm_Symbol, ds : {(_?VecQ | _?NumQ) ..}, lms : {__?VecVarQ}, 
   OptionsPattern[]] := Module[{
 d=MetricTensor[],
- dens, ddens,m,
+ dens, ddens,m,matr,
 dim, ems, sps, toj,ns,l},
-If[Length@UpValues[nm]>0,Message[NewDsBasis::ovrw,nm]];
+If[Length@UpValues[nm]>0,Message[NewDsSet::ovrw,nm]];
 SectorsPattern[nm]^=OptionValue[SectorsPattern];
 (*Normalize denominators*)
 dens = Replace[ds,x_?VecQ :> sp[x, x], {1}];
@@ -433,11 +445,12 @@ LiteRedPrint["Irreducible numerator(s) appended: ",Sequence@@Riffle[ns,","],".\n
 SectorsPattern[nm]^={___,Sequence@@(0&/@ns)};
 ];(*/add numerators*)
 dim=Length@dens;
-(*linear relations*)m=NullSpace[Transpose[Outer[Coefficient,ddens, sps]]];
+matr=Transpose[Outer[Coefficient,ddens, sps]];
+(*linear relations*)m=NullSpace[matr];
 ns=$NamingFunction[dim];
 If[m=!={},m=Numerator@Factor@LFDistribute[m.(ns-ddens)]];
 nm/:Relations[nm]=Function[#1,#2]&[ns,m];
-LiteRedPrint[StringJoin@@Riffle[Flatten[{"Found relations",ToString/@Thread[m==0]}],"\n    "]];
+LiteRedPrint[StringJoin@@Riffle[Flatten[{"Found relations",ToString[#,InputForm]&/@Thread[m==0]}],"\n    "]];
 (*/linear relations*)
 Toj[nm]^=Thread[sps-> Most[ComplexExpand@PseudoInverse[Append[Transpose[Append[Transpose[Outer[Coefficient,ddens, sps]],ddens/.Thread[sps->0]]],PadLeft[{1},Length@sps+1]]]].(j[nm,##]&@@@Append[-IdentityMatrix[dim],ConstantArray[0,dim]])];
 nm /: Ds[nm] = dens;
@@ -445,6 +458,9 @@ nm /: NDs[nm] = dim;
 nm /: SPs[nm] = sps;
 nm /: LMs[nm] = lms;
 nm /: EMs[nm] = ems;
+CutDs[nm]^=Replace[OptionValue[CutDs],{None->ConstantArray[0,dim],Automatic:>cutds[SectorsPattern[nm],dim]}];
+SectorsPattern[nm]^=SectorsPattern[nm]/. (1)->(_);
+(*Added 21.12.2020*)nm/:jsOrder[nm]=OptionValue[jsOrder];(*/Added 21.12.2020*)
 (*Definitions 21.11.13*)
 l=DeleteCases[{Sort[{##}],Replace[sp[##],sp->List,{1},Heads->True]}&@@@Replace[Subsets[ems,{1,2}],{x_}:> {x,x},{1}],{l_,l_}];
 Definitions[nm]^=Flatten[{If[AtomQ[MetricTensor[]],Hold[MetricTensor[]===#,SetDim[#]]&[MetricTensor[]],Unevaluated[Sequence[]]],
@@ -473,6 +489,31 @@ nm(*return basis*)
 ];
 
 
+NewDsBases::usage="NewDsBases[\!\(\*
+StyleBox[\"set\", \"TI\"]\)] defines bases which cover \!\(\*
+StyleBox[\"set\", \"TI\"]\).";
+
+
+NewDsBases::names:="The list of names for the bases, `1`, is too short.";
+NewDsBases[nm_?DsSetQ,bs_List:Automatic,patt_:Automatic]:=Module[{nms,pat=Replace[patt,Automatic->SectorsPattern[nm]],matr,bases,ii,iid,secpat,cutds,k,ds=Ds[nm],ns,nbs},
+ns=$NamingFunction[Length[ds]];
+matr=Outer[Coefficient,LFDistribute[ds,sp],SPs[nm]];
+bases=Rest/@List@@@DeleteDuplicates[jSector/@jVars[PFReduce/@(j@@@BiggestSectors[nm])]];
+nbs=Length[bases];
+Quiet[Check[nbs=Take[Replace[bs,Automatic:>Array[ToExpression[ToString[nm]<>IntegerString[#,10,Ceiling[Log10[nbs+1]]]]&,{nbs}]],nbs],Message[NewDsBases::names,bs];Abort[]],Take::take];
+bases=(ii=iid=Flatten[Position[#,1,{1}]];MapIndexed[If[MatrixRank[matr[[Join[ii,#2]]]]>Length[ii],ii=Join[ii,#2]]&,Flatten[Position[#,0,{1}]]];ii=Sort[ii];
+secpat=Replace[ii,Append[Thread[iid->_],_->0],{1}];
+cutds=CutDs[nm][[ii]];
+{ii,secpat,cutds}
+)&/@bases;
+NewDsBasis@@@MapThread[{#1,ds[[#2[[1]]]],LMs[nm],Directory->BasisDirectory[nm], SectorsPattern->#2[[2]],CutDs->#2[[3]]}&,{nbs,bases}];
+(*rules*)
+SetToBasesRule[nm]^=MapThread[((j[nm]@@Replace[MapAt[p[#,_]&,ns,List/@#2],Except[_p]->0,{1}]/.p:>Pattern):>Evaluate[j[#1]@@ns[[#2]]])&,{nbs,bases[[All,1]]}];
+LiteRedPrint["Defined bases "<>ToString[nbs]<>".\n    SetToBasesRule["<>ToString[nm]<>"] is the mapping rule."];
+nbs
+]
+
+
 GeneratePFGB::usage="GeneratePFGB[\!\(\*
 StyleBox[\"set\", \"TI\"]\)] generates groebner basis for partial fractioning. See "<>ToString[ Hyperlink["A. Pak, J. Phys. Conf. Ser. 368 (2012) 012049","http://iopscience.iop.org/article/10.1088/1742-6596/368/1/012049/meta"],StandardForm]<>".";
 
@@ -483,10 +524,13 @@ wm=Join[{ConstantArray[1,2*nds],Join[ConstantArray[1,nds],ConstantArray[0,nds]]}
 (*A strange way to avoid problems with valued variables. Could be much simpler if assuming d1,d2,...,n1,n2,... are not set*)
 dsns=ToExpression["Hold[Unevaluated@{"<>StringJoin@@Riffle[("d"<>#&/@Array[ToString,nds]),","]<>"},Unevaluated@{"<>StringJoin@@Riffle[("n"<>#&/@Array[ToString,nds]),","]<>"}]"];
 Function[{ds,ns},Block[ds,Block[ns,
-PFGB[nm]^=HoldForm@@{{ds,ns,GroebnerBasis[Join[ds ns-1,Relations[nm]@@ns],Join[ds,ns],MonomialOrder->wm]}};
+PFGB[nm]^=HoldForm@@{{ds,ns,GBasisHack[Join[ds ns-1,Relations[nm]@@ns],Join[ds,ns],MonomialOrder->wm]}};
 ]]]@@dsns;
 LiteRedPrint["Groebner basis for partial fractioning is generated.\n    PFGB["<>ToString[nm]<>"] \[LongDash] a list  (wrapped in HoldForm) {denominators,numerators,basis}."]
 ]
+
+
+GBasisHack[polys_,vars_,MonomialOrder->m_]:=Module[{l=Length@vars,fvars=Join[vars,Complement[Variables[polys],vars]],mf},mf=IdentityMatrix[Length@fvars];mf[[;;l,;;l]]=m;GroebnerBasis[polys,fvars,MonomialOrder->mf]]
 
 
 PFGB::usage="PFGB[\!\(\*
@@ -498,6 +542,21 @@ PFReduce::usage="PFReduce[\!\(\*
 StyleBox[\"expression\", \"TI\"]\)] makes partial fractioning in \!\(\*
 StyleBox[\"expression\", \"TI\"]\) containing j[\!\(\*
 StyleBox[\"set\", \"TI\"]\),\[Ellipsis]].";
+
+
+PFReduce[expr_]:=Module[{ex=expr,bs=Union[Cases[expr,j[b_,__]:>b,{0,\[Infinity]}]],wm,nds},
+Scan[Function[b,
+nds=NDs[b];
+wm=Join[{ConstantArray[1,2*nds],Join[ConstantArray[1,nds],ConstantArray[0,nds]]},Delete[IdentityMatrix[2*nds],{{nds},{2*nds}}]];
+Function[{ds,ns,gb},Block[ds,Block[ns,
+ex=Plus@@(((j[b,##]&@@Subtract@@Partition[#1,Length@ds]) *#2)&@@@CoefficientRules[Last@PolynomialReduce[ex/.j[b,k__]:>Times@@MapThread[If[Positive[#1],#2^#1,#3^(-#1)]&,{{k},ds,ns}],gb,Join[ds,ns],MonomialOrder->wm],Join[ds,ns]]);
+]]]@@Delete[PFGB[b],{1,0}]],bs];
+ex]
+
+
+PFSuggestBases::usage="PFSuggestBases[\!\(\*
+StyleBox[\"dsset\", \"TI\"]\)] suggests set of bases to cover the \!\(\*
+StyleBox[\"dsset\", \"TI\"]\). ";
 
 
 PFReduce[expr_]:=Module[{ex=expr,bs=Union[Cases[expr,j[b_,__]:>b,{0,\[Infinity]}]],wm,nds},
@@ -548,7 +607,19 @@ StyleBox[\"basis\", \"TI\"]\) will be save with DiskSave[\!\(\*
 StyleBox[\"basis\", \"TI\"]\)].";
 
 
-Options[NewDsBasis]={GenerateIBP->False,SectorsPattern->Automatic,CutDs->Automatic,AnalyzeSectors->False,FindSymmetries->False,FindExtSymmetries->False,Directory->False,Append->False,PowerShifts->None,SolvejSector->False};
+Options[NewDsBasis]={
+	GenerateIBP->False,
+	SectorsPattern->Automatic,
+	CutDs->Automatic,
+	AnalyzeSectors->False,
+	FindSymmetries->False,
+	FindExtSymmetries->False,
+	Directory->False,
+	Append->False,
+	PowerShifts->None,
+	SolvejSector->False,
+	jsOrder->{"np","cp","-ds","-ns"}
+};
 
 
 PowerShifts[nm_?DsBasisQ]:=PowerShifts[nm]=ConstantArray[0,Length@Ds[nm]]
@@ -612,6 +683,7 @@ nm /: LMs[nm] = lms;
 nm /: EMs[nm] = ems;
 nm/:Toj[nm]=toj;
 nm/:Parameters[nm]=pars;
+nm/:jsOrder[nm]=OptionValue[jsOrder];
 jSector[nm]=js@@Prepend[ConstantArray[1,dim],nm];
 MIs[nm]^={};Quiet[nm/:ToMyMIs[nm]=.];
 (*Doubtful*)
@@ -648,7 +720,7 @@ MappedSectors[nm]^={};
 SectorsMappings[nm]^={};
 ExtMappedSectors[nm]^={};
 ExtSectorsMappings[nm]^={};
-LiteRedPrint["Valid basis."<>(If[save=!=False," The definitions of the basis will be saved in \""<>save<>"\" directory.",""])<>"\n    Ds[" <> # <>"] \[LongDash] denominators,\n    SPs[" <> # <>"] \[LongDash] scalar products involving loop momenta,\n    LMs[" <> # <>"] \[LongDash] loop momenta,\n    EMs[" <> # <>"] \[LongDash] external momenta,\n    Parameters[" <> # <>"] \[LongDash] parameters (invariants, masses, dimension),\n    Toj[" <> # <>"] \[LongDash] rules to transform scalar products to denominators,\n    CutDs[" <> # <>"] \[LongDash] flag vector of cut denominators."] &@ToString[nm];
+LiteRedPrint[#<>" is valid basis."<>(If[save=!=False," The definitions of the basis will be saved in \""<>save<>"\" directory.",""])<>"\n    Ds[" <> # <>"] \[LongDash] denominators,\n    SPs[" <> # <>"] \[LongDash] scalar products involving loop momenta,\n    LMs[" <> # <>"] \[LongDash] loop momenta,\n    EMs[" <> # <>"] \[LongDash] external momenta,\n    Parameters[" <> # <>"] \[LongDash] parameters (invariants, masses, dimension),\n    Toj[" <> # <>"] \[LongDash] rules to transform scalar products to denominators,\n    CutDs[" <> # <>"] \[LongDash] flag vector of cut denominators."] &@ToString[nm];
 CurrentState[nm,NewDsBasis]=True;
 If[save=!=False,
 BasisDirectory[nm]=save;
@@ -974,37 +1046,51 @@ MakeOrderMatrix[] prints an extended help (in particular, possible values for sp
 MakeOrderMatrix::bad="Order matrix `1` is not definitive.";
 
 
-MakeOrderMatrix[]:=Print[Style["MakeOrderMatrix[{0, 1, \[Ellipsis]}, {spec1, spec2, \[Ellipsis]}]",Bold]," constructs the order matrix for the sector {0,1,\[Ellipsis]}. Each spec1,spec2,\[Ellipsis] can be one of the following:\n    \"\[PlusMinus]np\" \[LongDash] plus/minus total power of numerators,\n    \"\[PlusMinus]dp\" \[LongDash] plus/minus total power of denominators,\n    \"\[PlusMinus]ns\" \[LongDash] plus/minus numerator powers,\n    \"\[PlusMinus]ds\" \[LongDash] plus/minus denominator powers,\n    \[PlusMinus]1,\[PlusMinus]2,etc \[LongDash] power of the corresponding denominator or numerator.\nPlus sign can be omitted.\n",Style["MakeOrderMatrix[{0,1,\[Ellipsis]}]",Bold]," is equivalent to ",Style["MakeOrderMatrix[{0,1,\[Ellipsis]},{\"np\",\"-ds\",\"ns\"}]",Bold],".\n",Style["MakeOrderMatrix[js[nm,0,1,\[Ellipsis]],{\[Ellipsis]}]",Bold]," is equivalent to ",Style["MakeOrderMatrix[{0,1,\[Ellipsis]},{\[Ellipsis]}].",Bold]];
+MakeOrderMatrix[]:=Print[Style["MakeOrderMatrix[{0, 1, \[Ellipsis]}, {spec1, spec2, \[Ellipsis]}]",Bold]," constructs the order matrix for the sector {0,1,\[Ellipsis]}. Each spec1,spec2,\[Ellipsis] can be one of the following:\n    \"\[PlusMinus]np\" \[LongDash] plus/minus total power of numerators,\n    \"\[PlusMinus]dp\" \[LongDash] plus/minus total power of denominators,\n    \"\[PlusMinus]ns\" \[LongDash] plus/minus numerator powers,\n    \"\[PlusMinus]ds\" \[LongDash] plus/minus denominator powers,\n    \[PlusMinus]1,\[PlusMinus]2,etc \[LongDash] power of the corresponding denominator or numerator.\nPlus sign can be omitted.\n",Style["MakeOrderMatrix[{0,1,\[Ellipsis]}]",Bold]," is equivalent to ",Style["MakeOrderMatrix[{0,1,\[Ellipsis]},{\"np\",\"-ds\",\"-ns\"}]",Bold],".\n",Style["MakeOrderMatrix[js[nm,0,1,\[Ellipsis]],{\[Ellipsis]}]",Bold]," is equivalent to ",Style["MakeOrderMatrix[{0,1,\[Ellipsis]},{\[Ellipsis]}].",Bold]];
 
 
-MakeOrderMatrix[js[_,ns:(0|1)...],spec___]:=MakeOrderMatrix[{ns},spec]
-MakeOrderMatrix[sec:{(0|1)...}]:=MakeOrderMatrix[sec,{"np","-ds","ns"}]
-MakeOrderMatrix[sec:{(0|1)...},spec:_List]:=Module[{
-l=Length[sec],
-m={2sec-1}(*First criterion is total power, obligatory!*),
+MakeOrderMatrix[js[nm_,ns:(0|1)...],spec___]:=MakeOrderMatrix[{ns}*(1-2*CutDs[nm]),spec]
+(*-1 stands for cut denominators!!!*)
+MakeOrderMatrix[sec:{(0|1|-1)...}]:=MakeOrderMatrix[sec,{"np","cp","-ds","-ns"}]
+MakeOrderMatrix[sec1:{(0|1|-1)...},spec_List]:=Module[{
+l=Length[sec1],
+sec=Abs[sec1],
+m,
 unfold,
 r=0,
 mf={}
 },
+m={2sec-1};(*First criterion is total power, obligatory!*)
 unfold=MapIndexed[(If[#1===0,Unevaluated[Sequence[]],RotateRight[PadLeft[{#1},l],First@#2]])&,#]&;
 Replace[
 spec,
 {
 "np"|"+np":>AppendTo[m,sec-1],
 "-np":>AppendTo[m,1-sec],
+"cp"|"+cp":>AppendTo[m,-Replace[sec1,0|1->0,{1}]],
+"-cp":>AppendTo[m,Replace[sec1,0|1->0,{1}]],
 "dp"|"+dp":>AppendTo[m,sec],
 "-dp":>AppendTo[m,-sec],
 "ns"|"+ns":>(m=Join[m,unfold[sec-1]]),
 "-ns":>(m=Join[m,unfold[1-sec]]),
+"\[PlusMinus]ns":>(m=Join[m,unfold[(sec-1)*RandomChoice[{-1,1},l]]]),
+"?ns"|"+?ns":>(m=Join[m,RandomSample[unfold[sec-1]]]),
+"-?ns":>(m=Join[m,RandomSample[unfold[1-sec]]]),
+"\[PlusMinus]?ns":>(m=Join[m,RandomSample[unfold[(sec-1)*RandomChoice[{-1,1},l]]]]),
 "ds"|"+ds":>(m=Join[m,unfold[sec]]),
 "-ds":>(m=Join[m,unfold[-sec]]),
+"\[PlusMinus]ds":>(m=Join[m,unfold[sec*RandomChoice[{-1,1},l]]]),
+"?ds"|"+?ds":>(m=Join[m,RandomSample@unfold[sec]]),
+"-?ds":>(m=Join[m,RandomSample[unfold[-sec]]]),
+"\[PlusMinus]?ds":>(m=Join[m,RandomSample[unfold[sec*RandomChoice[{-1,1},l]]]]),
 i_Integer?Positive:>AppendTo[m,RotateRight[PadLeft[{1},l],i]],
 i_Integer?Negative:>AppendTo[m,RotateRight[PadLeft[{-1},l],-i]]
 },
 {1}
 ];
+m=Fold[If[MatrixRank[Append[#1,#2]]>Length[#1],Append[#1,#2],#1]&,{},m];
 (*Matrix should be constructed, but we need to check consistency and trim extra lines*)
-If[MatrixRank[m]<l,Message[MakeOrderMatrix::bad,m]];
+If[Length[m]<l,Message[MakeOrderMatrix::bad,m]];
 m
 ]
 
@@ -1039,10 +1125,7 @@ Default setting is {1,-1,1,2,3,\[Ellipsis],n}.";
 jsOrder::wrng="Wrong specification of order. See ?jsOrder.";
 
 
-jsOrder[nm_,ns:(0|1)...]:=(nm/:jsOrder[nm,ns]=MakeOrderMatrix[{ns}]);
-
-
-todo["Standartize length of jsorder!"];
+jsOrder[nm_,ns:(0|1)...]:=(nm/:jsOrder[nm,ns]=MakeOrderMatrix[js[nm,ns],Replace[jsOrder[nm],_jsOrder:>Sequence[]]]);
 
 
 jsOrder/:TagSet[nm_,jsOrder[nm_,n__],y_List]:=Module[{nm1,n1,y1,l=Length[{n}],pl,cr,sort},
@@ -1850,7 +1933,10 @@ CheckZeroFunction->Factor1,CheckZeroAlways->True,SimplifyFunction->Factor1,Simpl
 Fermatica`UseFermat->False,
 Sharpen->True,
 
+jsOrder->Automatic,
 
+First->Automatic,(*SolvejSector[nm,First\[Rule]js[nm,\[Ellipsis]]] is a shortcut for SolvejSector[Drop[#,Replace[Position[#,js[nm,\[Ellipsis]],{1},1],{{n_}\[RuleDelayed]n-1,{}\[Rule]-1}]]&@UniqueSectors[nm],DiskRecover\[Rule]True] *)
+After->Automatic,(*SolvejSector[nm,After\[Rule]js[nm,\[Ellipsis]]] is a shortcut for SolvejSector[Drop[#,Replace[Position[#,js[nm,\[Ellipsis]],{1},1],{{n_}\[RuleDelayed]n,{}\[Rule]-1}]]&@UniqueSectors[nm],DiskRecover\[Rule]True] *)
 GeneratedCell->True,
 NamingFunction->Automatic(*index naming*),
 jGraph->False
@@ -1861,10 +1947,15 @@ SolvejSector::dim="Please, set dimension to be a symbol. Use SetDim[\[Ellipsis]]
 
 
 SolvejSector[nm_Symbol,opts:OptionsPattern[]]:=
-Module[{res},
-CurrentState[nm,SolvejSector]=False;
-res=SolvejSector[UniqueSectors[nm],opts];
-If[MatchQ[res,{__Integer?Positive}],CurrentState[nm,SolvejSector]=True];
+Module[{res,us=UniqueSectors[nm],drop},
+drop=Replace[{OptionValue[First],OptionValue[After]},{
+{Automatic,js1_js}:>Replace[Position[us,js1,{1},1],{{{n_}}:>n,{}->-1}],
+{js1_js,Automatic}:>Replace[Position[us,js1,{1},1],{{{n_}}:>n-1,{}->-1}],
+{_,_}:>0
+}];
+us=Drop[us,drop];
+res=SolvejSector[us,opts];
+If[drop==0&&MatchQ[res,{__Integer?Positive}],CurrentState[nm,SolvejSector]=True];
 res
 ]
 SolvejSector[sects_List,opts:OptionsPattern[]]:=SolvejSector[#,opts]&/@sects
@@ -1873,13 +1964,15 @@ SolvejSector[sects_List,opts:OptionsPattern[]]:=SolvejSector[#,opts]&/@sects
 todo["Parameters: make fallback for old-style bases"];
 
 
-SolvejSector[jsect_js,OptionsPattern[]]:=Module[{
+SolvejSector[jsect:js[nm_,ns:(0|1)...],OptionsPattern[]]:=Module[{
 file=StringReplace[ToString@jsect,"js"->"jRules"],
-nm=First@jsect,
-corner=Rest[List@@jsect],
+(*(*Deleted 18.12.2020*)nm=First@jsect,(*/Deleted 18.12.2020*)*)
+(*Modified 18.12.2020*)
+corner={ns}(*Rest[List@@jsect]*),(*/Modified 18.12.2020*)
 indices,
 constr,
-nds=Length@jsect-1,
+(*Modified 18.12.2020*)
+nds=Length@{ns}(*Length@jsect-1*),(*/Modified 18.12.2020*)
 ps,
 reserved=False,
 indicnop=0,
@@ -1909,15 +2002,19 @@ tc,tcf,tct,tctr,tc1,
 sjopts,whenBad,smartReduce,(*cf,
 fromRules,expandRules,*)found,depth,maxDepth,
 pointsdone={},pointsprepared,
-badconditions,
+badconditions,jsorder,
 init,clean,submit,solve
 },
+CurrentState[nm,SolvejSector]=False;
 CheckAbort[
 (* Processing options *)
-{indices,searchDepth,maxDepth,useSR,disksave,diskreco,onmis,tc,tct,sf,usefer}={Replace[OptionValue[NamingFunction],Automatic:>$NamingFunction][nds],OptionValue@Depth,OptionValue@MaxDepth,OptionValue@SR,Replace[OptionValue@DiskSave,True:>BasisDirectory[nm]],Replace[OptionValue@DiskRecover,{Automatic|True->True,_->False}],OptionValue@NMIs,OptionValue@TimeConstrained,OptionValue@TimeConstraint,OptionValue@SimplifyFunction,OptionValue@Fermatica`UseFermat};
+{indices,searchDepth,maxDepth,useSR,disksave,diskreco,onmis,tc,tct,sf,usefer,jsorder}={Replace[OptionValue[NamingFunction],Automatic:>$NamingFunction][nds],OptionValue@Depth,OptionValue@MaxDepth,OptionValue@SR,Replace[OptionValue@DiskSave,True:>BasisDirectory[nm]],Replace[OptionValue@DiskRecover,{Automatic|True->True,_->False}],OptionValue@NMIs,OptionValue@TimeConstrained,OptionValue@TimeConstraint,OptionValue@SimplifyFunction,OptionValue@Fermatica`UseFermat,(*Added 18.12.2020*)Replace[OptionValue[jsOrder],{Automatic->True,order_List:>MakeOrderMatrix[js[nm,ns],order]}](*/Added 18.12.2020*)};
 onmis=Replace[onmis,{Automatic:>If[Contexts["Mint`"]=!={},If[IntegerQ[#],#,-1]&@Symbol["Mint`CountMIs"][jsect,Symmetric->useSR],-1],n_Integer:>n,f_:>f[jsect]}];
+(*Added 18.12.2020*)
+If[!TrueQ[jsorder],jsOrder[nm,ns]=jsorder];(*/Added 18.12.2020*)
 noRules={OptionValue[jRules]@@indices};
 Declare[Evaluate@indices,Number];
+
 ps=Replace[PowerShifts[nm],Except[0]->1,{1}];
 tcf=If[Not@TrueQ@Not@tc,TimeConstrained,#&];sjopts=FilterRules[(#->OptionValue[SolvejSector,#])&/@First/@Options[SolvejSector],Options[Solvej]];
 ids=Replace[OptionValue@RRs,{Automatic->IBPLI[nm],x:IBPLI|IBP|LI|FPIBP:>x[nm]}];
@@ -1931,8 +2028,18 @@ constr=And@@MapThread[Replace[#1,{1->#2>=1,0->#2<=0}]&,{corner,indices}];
 smartReduce[expr_]:=SmartReduce[expr,indices,corner];
 ptrnrule=Inner[#1->Pattern[#1,_]?#2&,indices,(corner/.{1->Positive,0->NonPositive}),List];
 If[Not@TrueQ@Not@disksave&&diskreco&&FileExistsQ[disksave<>"/"<>file],
-jRulesF=Get[disksave<>"/"<>file];If[jRulesF==="reserved",LiteRedPrint["The sector ",jsect," is likely being solved by another kernel. Execute SolvejSector["<>ToString[jsect]<>",DiskRecover\[Rule]True] later to update MIs["<>ToString[nm]<>"]."];Return[Indeterminate],misFound=j[nm,##]&@@indices/.#&/@{ToRules[LogicalExpand@Reduce[Not[Or@@jRulesF[[All,1,2]]]&&constr(*(*Deleted 25.03.2018*)sectcond(*/Deleted 25.03.2018*)*),Integers]]}];
-If[disksave===BasisDirectory[nm],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[BasisDirectory["<>ToString[nm]<>"]<>\"/"<>file<>"\"]"],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[\""<>disksave<>"/"<>file<>"\"]"]];LiteRedPrint["Sector ",jsect," is recovered from file"];,
+(*Modified 18.12.2020*)
+Block[{Last=Identity},
+(*(*Had we not worried for backward compatibility, we could have used*) {jsorder,jRulesF}=Get[disksave<>"/"<>file]; *)
+jRulesF=Get[disksave<>"/"<>file];If[MatchQ[jRulesF,{_?MatrixQ,_List}],{jsorder,jRulesF}=jRulesF]
+];(*/Modified 18.12.2020*)If[jRulesF==="reserved",LiteRedPrint["The sector ",jsect," is likely being solved by another kernel. Execute SolvejSector["<>ToString[jsect]<>",DiskRecover\[Rule]True] later to update MIs["<>ToString[nm]<>"]."];Return[Indeterminate],
+misFound=j[nm,##]&@@indices/.#&/@{ToRules[LogicalExpand@Reduce[Not[Or@@jRulesF[[All,1,2]]]&&constr(*(*Deleted 25.03.2018*)sectcond(*/Deleted 25.03.2018*)*),Integers]]}];
+If[disksave===BasisDirectory[nm],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[BasisDirectory["<>ToString[nm]<>"]<>\"/"<>file<>"\"]"],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[\""<>disksave<>"/"<>file<>"\"]"]];(*Modified 18.12.2020*)If[TrueQ[jsorder]||jsOrder[nm,ns]===jsorder,
+LiteRedPrint["Sector ",jsect," is recovered from file."],
+jsOrder[nm,ns]=jsorder;
+LiteRedPrint["Sector ",jsect," is recovered from file. ",Style["jsOrder has changed!",Bold]]
+];(*/Modified 18.12.2020*)
+,
 (**)
 Catch[tcf[LiteRedPrint["Sector ",jsect];If[Not[TrueQ@Not@disksave||FileExistsQ[disksave<>"/"<>file]],If[!DirectoryQ[disksave],CreateDirectory[disksave];Message[DiskSave::dir,disksave]];Put["reserved",disksave<>"/"<>file];reserved=True];(*ptrnrule\[LongDash]replace indices with patterns*)
 gatherRules[norules_]:=(*List/@Flatten[#,1]&@*)SortBy[Sort[#,(Last@#1)>(Last@#2)&]&/@Gather[{#,j[nm,##]&@@indices/.#}&/@norules,MatchQ[Expand[List@@Last@#1-List@@Last@#2],{__Integer}]&(*Gather contiguous*)],{
@@ -1954,8 +2061,6 @@ whenBad[expr_]:=WhenBad[expr,indices,corner,parameters];
 jRulesF={};
 indicnr=Length[jRulesF];
 indicstime=AbsoluteTime[];
-
-
 
 If[$LiteRedMonitor,moni=PrintTemporary["    ",TableForm[{{Dynamic["Spent "<>ToString[Round[AbsoluteTime[]-indicstime]]<>" seconds"<>indicsip<>".",UpdateInterval->1]},Dynamic[Overlay[{ProgressIndicator[indicpb,{0,nds+1/2}],ToString[indicnop]<>"\[Rule]"<>ToString[indicnopToGo]},Alignment->Center]],Dynamic[ToString[indicnr]<>" point: "<>StringReplace[ToString[startps]," "->""]]}]]];
 
@@ -2027,8 +2132,9 @@ AppendTo[rulesFound,{RulesToCondition[{case}],rules2}];
 AppendTo[jRulesF,jRules1];
 AppendTo[badconditions,RulesToCondition[{case}]&&rules2];
 cases=DeleteCases[cases,case];
+If[cases==={},Break[]];
 startps=(indices/.#)&/@cases;
-If[cases==={}||numeric&&Length[misFound]+Total[Length/@noRules]+Length[cases]<=onmis,Break[]];
+If[numeric&&Length[misFound]+Total[Length/@noRules]+Length[cases]<=onmis,Break[]];
 pat1=(j[nm,##]&@@(Pattern[#,Blank[]]&/@indices))/;Evaluate[RulesToCondition[cases]];
 ,
 PutAppend[jRules1,BasisDirectory[nm]<>StringReplace[ToString[jsect],"js["->"/jBadRules["]];
@@ -2454,6 +2560,26 @@ currentPoint=Rest[List@@jj];
 layerPoints=Cases[currentPoint+#&/@DeleteDuplicates[Join@@NestList[Flatten[Outer[Plus,#,shifts,1],1]&,zeroLayer,searchDepthOption]],x_/;(jSector[j[nm,##]&@@x]===sect)];
 layer=Flatten[{IBPLI[nm]@@@layerPoints,{},If[useSROption,SR[nm]@@@layerPoints,{}]}](*Select[Flatten[{IBPLI[nm]@@@layerPoints,{},If[useSROption,SR[nm]@@@layerPoints,{}]}],Highj@#\[GreaterEqual]jj&]*);
 Bloodhound[layer,jj]
+]
+
+
+BiggestSectors::usage="BiggestSectors[\!\(\*
+StyleBox[\"basis\", \"TI\"]\),\!\(\*
+StyleBox[\"pattern\", \"TI\"]\)] returns the biggest sectors of the \!\(\*
+StyleBox[\"basis\", \"TI\"]\)\!\(\*
+StyleBox[\" \", \"TI\"]\)(which also can be a \!\(\*
+StyleBox[\"set\", \"TI\"]\)) matching the \!\(\*
+StyleBox[\"pattern\", \"TI\"]\).\nIf \!\(\*
+StyleBox[\"pattern\", \"TI\"]\) is omitted, SectorsPattern[\!\(\*
+StyleBox[\"basis\", \"TI\"]\)] is used instead.";
+
+
+BiggestSectors[nm_,patt_:Automatic]:=Module[{big,sectors,n=NDs[nm],pat=Replace[patt,Automatic->SectorsPattern[nm]]},
+big={};
+sectors=Select[Range[0,2^n-1],MatchQ[IntegerDigits[#1,2,n],pat]&];
+While[sectors=!={},(AppendTo[big,#];
+sectors=DeleteCases[sectors,x_/;(BitOr[x,#]===#)])&[Last[sectors]]];
+js[nm]@@IntegerDigits[#1,2,n]&/@big
 ]
 
 
@@ -4810,7 +4936,7 @@ jGraph[_Symbol]:={};
 
 
 Options[jGraph]={Label->Label(*can be any sane expression involving Label, Number, Dot, e.g. Label\[Rule]{Label,Number,Dot}. External legs always remain to be just a Label*)
-(*Dot\[Rule]False*)(**)};
+(*Dot\[Rule]False*)(**),Left->{}(*which vertices come first*)};
 
 
 jGraph[j[nm_Symbol,x__],OptionsPattern[]]:=Module[{graph=None,jsect=jSector[j[nm,x]],contracted,newv,tmp,edge,i=0,lab},
@@ -4838,7 +4964,45 @@ graph[[First[#2],1]]=graph[[First[#2],1]]/.{HoldPattern[Rule[v1_,v2_]]:>(Rule[v1
 graph=If[MatchQ[#1,_?Positive->_?Positive],{#1,lab/.#2},{#1,#2}]&@@@graph;
 (*graph[[;;Count[{x},_?Positive],2]]=OptionValue[Label]/.graph[[;;Count[{x},_?Positive],2]];*)
 If[Cases[{x},_?Negative]!={},Message[jGraph::nums]];
-graph
+GraphSort[graph,OptionValue[Left]]
+]
+
+
+GraphSort::usage="GraphSort[\!\(\*
+StyleBox[\"graph\", \"TI\"]\),\!\(\*
+StyleBox[\"start\", \"TI\"]\)] sorts \!\(\*
+StyleBox[\"graph\", \"TI\"]\)\!\(\*
+StyleBox[\"=\", \"TI\"]\)\!\(\*
+StyleBox[\"{\", \"TI\"]\)\!\(\*
+StyleBox[\"{\", \"TI\"]\)\!\(\*SubscriptBox[
+StyleBox[\"v\", \"TI\"], \(1\)]\)\!\(\*
+StyleBox[\"\[Rule]\", \"TI\"]\)\!\(\*SubscriptBox[
+StyleBox[\"v\", \"TI\"], \(2\)]\)\!\(\*
+StyleBox[\",\", \"TI\"]\)\!\(\*
+StyleBox[\"...\", \"TI\"]\)\!\(\*
+StyleBox[\"}\", \"TI\"]\)\!\(\*
+StyleBox[\",\", \"TI\"]\)\!\(\*
+StyleBox[\"...\", \"TI\"]\)\!\(\*
+StyleBox[\"}\", \"TI\"]\) with starting from the edges that contain the vertices in the \!\(\*
+StyleBox[\"start\", \"TI\"]\)\!\(\*
+StyleBox[\"=\", \"TI\"]\)\!\(\*
+StyleBox[\"{\", \"TI\"]\)\!\(\*SubscriptBox[
+StyleBox[\"v\", \"TI\"], \(i\)]\)\!\(\*
+StyleBox[\",\", \"TI\"]\)\!\(\*SubscriptBox[
+StyleBox[\"v\", \"TI\"], \(k\)]\)\!\(\*
+StyleBox[\",\", \"TI\"]\)\!\(\*
+StyleBox[\"...\", \"TI\"]\)\!\(\*
+StyleBox[\"}\", \"TI\"]\). This is an attempt to give user some control on how GraphPlot layouts graphs. Basically, the vertices in the \!\(\*
+StyleBox[\"start\", \"TI\"]\) list are expected to appear to the left of the GraphPlot picture.";
+GraphSort[jgraph_List,lverts_List]:=Module[{jgraph1=jgraph,jgraph2={},level,lverts1=Alternatives@@lverts},
+(*Assign weight*)
+While[jgraph1=!={},
+level=Cases[jgraph1,{lverts1->_,___}|{_->lverts1,___}];If[level==={},jgraph2=Join[jgraph2,jgraph1];Break[]];
+jgraph1=DeleteCases[jgraph1,Alternatives@@level];
+lverts1=Alternatives@@Union@@List@@@First/@level;(*Print[lverts1];*)
+jgraph2=Join[jgraph2,level];
+];
+jgraph2
 ]
 
 
