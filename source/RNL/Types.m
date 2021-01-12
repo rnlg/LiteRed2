@@ -16,7 +16,7 @@
 (*Preamble*)
 
 
-$PrePrint=($PrePrint/.{HoldPattern[Types`Private`TypesPostFunction[x_]]->x});
+(*$PrePrint=($PrePrint/.{HoldPattern[Types`Private`TypesPostFunction[x_]]->x});*)
 (*Sacrifice possibility to reload the package in favour of posssibility to first switch off log by setting Types`TypesLog=False 
 (Unprotect[#];Remove[#])&/@((#<>"*")&/@Contexts["Types`*"]);*)
 
@@ -49,9 +49,9 @@ TypeX::usage="TypeX[<expr>] gives the pair {<type>,<expr>}";
 
 
 VarQ::usage="VarQ[\[ScriptX]] gives True if \[ScriptX] is the variable, i.e. \[ScriptX] is a nonnumeric Symbol. Obsolete";
-TypesCache::usage="TypesCache[0] switches off the cash of the function TypeX,\n
+(*TypesCache::usage="TypesCache[0] switches off the cash of the function TypeX,\n
 TypesCache[1] and TypesCache[2] switch on the cash of the function TypeX, the former activates clearing of the cash automatically.";
-TypesClearCache::usage="TypesClearCache[] clears cash of TypeX."
+TypesClearCache::usage="TypesClearCache[] clears cash of TypeX."*)
 
 
 TypeTable::usage="TypeTable[<op>] gives the lists of in- and out- types of the operation op[...]";
@@ -110,34 +110,34 @@ VarQ[_]:=False;
 TypeTable[_]={{{Untyped,_}...}->Untyped,_List->Badformed};
 
 
-(* ::Subsection::Closed:: *)
-(*TypesClearList*)
+(* ::Subsection:: *)
+(*TypesClearList (inactive)*)
 
 
 (* ::Text:: *)
 (*TypesClearList \:0438\:0441\:043f\:043e\:043b\:044c\:0437\:0443\:0435\:0442\:0441\:044f \:0434\:043b\:044f \:0445\:0440\:0430\:043d\:0435\:043d\:0438\:044f \:0432\:044b\:0440\:0430\:0436\:0435\:043d\:0438\:0439, \:0442\:0438\:043f\:044b \:043a\:043e\:0442\:043e\:0440\:044b\:0445 \:0431\:044b\:043b\:0438 \:0432\:044b\:0447\:0438\:0441\:043b\:0435\:043d\:044b \:0432 \:043f\:0440\:043e\:0446\:0435\:0441\:0441\:0435 \:0434\:0430\:043d\:043d\:043e\:0433\:043e \:0432\:044b\:0440\:0430\:0436\:0435\:043d\:0438\:044f. TypesPostFunction "\:0437\:0430\:0431\:044b\:0432\:0430\:0435\:0442" \:0432\:044b\:0447\:0438\:0441\:043b\:0435\:043d\:043d\:044b\:0435 \:0442\:0438\:043f\:044b.*)
 
 
-TypesClearList={};TypesPostFunction=.;
+(*TypesClearList={};TypesPostFunction=.;
 Which[!ValueQ[$PrePrint],$PrePrint=TypesPostFunction[#]&,
 Head[$PrePrint]===Function,$PrePrint=MapAt[Unevaluated[TypesPostFunction],$PrePrint,-1],
 True,$PrePrint=TypesPostFunction[$PrePrint[#]]&/.HoldPattern[$PrePrint]->$PrePrint
 ];
 TypesPostFunction=(Unset/@TypesClearList;TypesClearList={};#)&;
-TypesCacheFunction=(AppendTo[TypesClearList,#1];#1=#2)&
+TypesCacheFunction=(AppendTo[TypesClearList,#1];#1=#2)&*)
 
 
 (* ::Subsection:: *)
-(*TypesCache, TypesClearCache*)
+(*TypesCache, TypesClearCache  (inactive)*)
 
 
-TypesCache[x:0|1|2]:=Switch[x,
+(*TypesCache[x:0|1|2]:=Switch[x,
 0,TypesPostFunction=#&;TypesCacheFunction=#2&;,
 1,TypesPostFunction=(Unset/@TypesClearList;TypesClearList={};#)&;TypesCacheFunction=(AppendTo[TypesClearList,#1];#1=#2)&;,
-2,TypesPostFunction=#&;TypesCacheFunction=(AppendTo[TypesClearList,#1];#1=#2)&;];
+2,TypesPostFunction=#&;TypesCacheFunction=(AppendTo[TypesClearList,#1];#1=#2)&;];*)
 
 
-TypesClearCache[]:=(Unset/@TypesClearList;TypesClearList={});
+(*TypesClearCache[]:=(Unset/@TypesClearList;TypesClearList={});*)
 
 
 (* ::Subsection::Closed:: *)
@@ -155,8 +155,7 @@ TypeOf[a_,t_]:=MatchQ[TypeOf[Unevaluated[a]],TypesBelow[t]];
 TypeX[{}]={{},{}};
 TypeX[l_List]:=Transpose[TypeX/@ReleaseHold[Map[Unevaluated,Hold[l],{2}]]];
 TypeX[nm_]/;!FreeQ[Unevaluated[nm],(_Pattern|_Blank|_BlankSequence|_BlankNullSequence|_Alternatives|_Optional|_PatternTest|_HoldPattern)]:={Untyped,nm};
-TypeX[h_[args___]]:=TypesCacheFunction[HoldPattern[TypeX[h[args]]],
-{Replace[List@@(TypeX/@Unevaluated/@Hold[args]),TypeTable[Unevaluated[h]]],h[args]}]
+TypeX[h_[args___]]:={Replace[List@@(TypeX/@Unevaluated/@Hold[args]),TypeTable[Unevaluated[h]]],h[args]}
 TypeX[nm_]:={Untyped,nm};
 
 
@@ -195,7 +194,8 @@ SetAttributes[Declare,HoldAll];
 Declare[x_List,t_]:=Scan[Declare[#,t]&,Map[Unevaluated,Hold[x],{2}],{2}];
 Declare::info="The variable `1` is declared as `2`";
 Off[Declare::info];
-Declare[x_,t_]:=(TypeX[Unevaluated[a:x]]^={t,a};InitFunction[x,t];(Unset/@#;TypesClearList=Complement[TypesClearList,#])&[Select[TypesClearList,MemberQ[#,Unevaluated[x],Infinity]&]];Message[Declare::info,HoldForm[x],t])
+Declare[x_,t_]:=(TypeX[Unevaluated[a:x]]^={t,a};InitFunction[x,t];(*(Unset/@#;TypesClearList=Complement[TypesClearList,#])&[Select[TypesClearList,MemberQ[#,Unevaluated[x],Infinity]&]];*)
+Message[Declare::info,HoldForm[x],t])
 Declare[x_,t_,r__]:=(Declare[x,t];Declare[r]);
 
 

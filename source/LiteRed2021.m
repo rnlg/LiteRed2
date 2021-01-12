@@ -26,6 +26,9 @@ LiteRed`Private`template=False
 ]
 
 
+If[$VersionNumber>=12.2,SetOptions[ValueQ,Method->"Legacy"]];
+
+
 LiteRed`$LiteRedHomeDirectory=DirectoryName[$InputFileName];
 
 
@@ -41,8 +44,8 @@ LiteRed`Private`LRNeeds["Numbers`",{"RNL`Numbers`",LiteRed`$LiteRedHomeDirectory
 BeginPackage["LiteRed`",{"Vectors`","LinearFunctions`","Numbers`","Types`"}]
 
 
-$LiteRedVersion="2.020";
-$LiteRedReleaseDate="09.01.2020";
+$LiteRedVersion="2.021\[Beta]";
+$LiteRedReleaseDate="????-??-??";
 $LiteRedVersion::usage="$LiteRedVersion is the current version of the LiteRed package.";
 $LiteRedReleaseDate::usage="$LiteRedReleaseDate is the release date of the current version.";
 
