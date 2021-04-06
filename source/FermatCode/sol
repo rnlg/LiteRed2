@@ -21,9 +21,26 @@
 Array rule[1,1] Sparse;
 
 
+; NZcols([m],i) returns the the number of nonzero elements on the ith row.
+Function NZcols(m,i,j,k) = for j = [m]i do k:+; od; k.;
+
 
 ; Firstcol([m],i) returns the index of the first nonzero element on the ith row.
 Function Firstcol(m,i,j) = for j = [m]i do &> od; j.;
+
+; Secondcol([m],i) returns the index of the second nonzero element on the ith row.
+Function Secondcol(m,i,j,k) =
+  for j = [m]i do
+    if k>0 then
+      k:=j;
+      &>
+    fi;
+    k:=Cols[m]+1;
+  od;
+  k.;
+
+; Lastcol([m],i) returns the index of the last nonzero element on the ith row.
+  Function Lastcol(m,i,j) = for j = [m]i do &] od; j.;
 
 ; Lastrow([m]) returns the index of the last row containing nonzero elements.
 Function Lastrow(m,i,last,j) =
@@ -118,49 +135,40 @@ Function RareCopy(new,mat,inds,off,skip,lst,i,j) =
   lst.;
 
 
-Function IncRowech(mat,eqs,ind,off,perm,h,h1,i,p,j,l,w,c) =
+Function IncRowech(mat,eqs,ind,l,h,h1,i,o,p,j,w,c) =
   {
-      IncRowech --- incremental row echelon form.`
+    IncRowech --- incremental row echelon form.`
+      mat --- rules database`
+      eqs --- equations database`
   }
   w := Cols[eqs];
-  {copy eq}
-  Array eq [1,w] Sparse;
-  for j = [eqs]ind do eq[1,j] := eqs[ind,j] od;
+  l:+;
+  for j = [eqs]ind do mat[l,j] := eqs[ind,j] od;
   {leftmost column}
-  h := Firstcol([eq],1);
-  {# of rows}
-  l := Lastrow([mat]);
-  while h>0 do
-    {search for an equation with the same leftmost column}
-    for p = 1,l+1 do
-      if h = 0 then &> fi;
-      i := perm[p];
-      h1 := Firstcol([mat],i);
-      if h1=0 then h1 := w+1 fi;
-
-      if h < h1 then
-        {add new row}
-        off:+;
-        for j = [eq]1 do mat[off,j] := eq[1,j] od;
+  h := Firstcol([mat],l);
+  if h = 0 then l:- else {equation is 0=0}
+    for p = 1,l do
+      if p = l then h1 := 0 else
+        i := perm[p];
+        h1 := Firstcol([mat],i)
+      fi;
+      if h1 = 0 or h < h1 then
         {recalculate perm}
-        for j = l,p,-1 do perm[j+1]:=perm[j] od;
-        perm[p]:=off;
-        h:=0;
+        for j = l-1,p,-1 do perm[j+1]:=perm[j] od;
+        perm[p]:=l;
         &>
       else if h = h1 then
+        {switching rows}
+;        if Lastcol([mat],l)<Lastcol([mat],i) then Switchrow([mat],i,l) fi;
         {modify new row}
-        c := - eq[1,h]/mat[i,h];
-        Array eq1 [1,w] Sparse;
-        for j = [mat]i do eq1[1,j] :=mat[i,j] od;
-        [eq] := [eq] + c*[eq1];
-        @[eq1];
-        h := Firstcol([eq],1);
-      fi fi;
+        c := - mat[l,h]/mat[i,h];
+        for j = [mat]i,l do mat[l,j] := mat[l,j]+mat[i,j]*c od;
+        h := Firstcol([mat],l);
+        if h = 0 then l:-;&> fi;
+      fi fi
     od
-  od;
-  @([eq]);
-  {return last row #}
-  off.;
+  fi;
+  l.;
 
 
 ; Hound
@@ -174,6 +182,7 @@ Function Fetch(from, lst, off,w) =
   lst := Lastrow([eqs]);
   off := Lastrow([db]);
   if off=0 then
+    {clean start}
     @[db]; Array db[lst,w] Sparse;
     Array perm[lst];
     [perm]:=lst
@@ -185,6 +194,7 @@ Function Fetch(from, lst, off,w) =
       {no remapping needed}
       SparseCopy([dbnew],[db],0,0,off)
     else
+      {remapping needed}
       RareCopy([dbnew],[db],[remap],0,0,off)
     fi;
     {permutations}
@@ -195,13 +205,14 @@ Function Fetch(from, lst, off,w) =
     @[db];Rname[dbnew]:='[db]'
   fi;
   @[remap];
+  rpos := Rpos([db],[wanted],off);
   while from<lst do
     {check whether there is already a rule}
-    rpos := Rpos([db],[wanted],off);
     if rpos>0 then &> fi;
     {not found yet, add rules}
     from:+;
-    off:=IncRowech([db],[eqs],from,off,[perm]);
+    off:=IncRowech([db],[eqs],from,off);
+    rpos := Rpos([db],[wanted],off);
     !!('1 eqs solved.');
   od;
   if rpos>0 then
