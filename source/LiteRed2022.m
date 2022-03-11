@@ -44,10 +44,8 @@ LiteRed`Private`LRNeeds["Numbers`",{"RNL`Numbers`",LiteRed`$LiteRedHomeDirectory
 BeginPackage["LiteRed`",{"Vectors`","LinearFunctions`","Numbers`","Types`"}]
 
 
-$LiteRedVersion="2.022\[Beta]";
-$LiteRedReleaseDate="????-??-??";
 $LiteRedVersion::usage="$LiteRedVersion is the current version of the LiteRed package.";
-$LiteRedReleaseDate::usage="$LiteRedReleaseDate is the release date of the current version.";
+$LiteRedReleaseDate::usage="$LiteRedReleaseDate is the release date of the current version.";$LiteRedReleaseDate="????-??-??";$LiteRedVersion=StringInsert[StringReplace[FileBaseName[$Input],Except[DigitCharacter]->""],".",2]<>"\[Beta]";
 
 
 Global`$LiteRedToDo=True;
@@ -1149,20 +1147,29 @@ spec,
 "dp"|"+dp":>AppendTo[m,sec],
 "-dp":>AppendTo[m,-sec],
 "ns"|"+ns":>(m=Join[m,unfold[sec-1]]),
+"nr"|"+nr":>(m=Join[m,Reverse@unfold[sec-1]]),
 "-ns":>(m=Join[m,unfold[1-sec]]),
+"-nr":>(m=Join[m,Reverse@unfold[1-sec]]),
 "\[PlusMinus]ns":>(m=Join[m,unfold[(sec-1)*RandomChoice[{-1,1},l]]]),
+"\[PlusMinus]nr":>(m=Join[m,Reverse@unfold[(sec-1)*RandomChoice[{-1,1},l]]]),
 "?ns"|"+?ns":>(m=Join[m,RandomSample[unfold[sec-1]]]),
 "-?ns":>(m=Join[m,RandomSample[unfold[1-sec]]]),
 "\[PlusMinus]?ns":>(m=Join[m,RandomSample[unfold[(sec-1)*RandomChoice[{-1,1},l]]]]),
 "ds"|"+ds":>(m=Join[m,unfold[sec]]),
+"dr"|"+dr":>(m=Join[m,Reverse@unfold[sec]]),
 "-ds":>(m=Join[m,unfold[-sec]]),
+"-dr":>(m=Join[m,Reverse@unfold[-sec]]),
 "\[PlusMinus]ds":>(m=Join[m,unfold[sec*RandomChoice[{-1,1},l]]]),
+"\[PlusMinus]dr":>(m=Join[m,Reverse@unfold[sec*RandomChoice[{-1,1},l]]]),
 "?ds"|"+?ds":>(m=Join[m,RandomSample@unfold[sec]]),
 "-?ds":>(m=Join[m,RandomSample[unfold[-sec]]]),
 "\[PlusMinus]?ds":>(m=Join[m,RandomSample[unfold[sec*RandomChoice[{-1,1},l]]]]),
 "bs"|"+bs":>(m=Join[m,unfold[2sec-1]]),
+"br"|"+br":>(m=Join[m,Reverse@unfold[2sec-1]]),
 "-bs":>(m=Join[m,unfold[1-2sec]]),
+"-br":>(m=Join[m,Reverse@unfold[1-2sec]]),
 "\[PlusMinus]bs":>(m=Join[m,unfold[(2sec-1)*RandomChoice[{-1,1},l]]]),
+"\[PlusMinus]br":>(m=Join[m,Reverse@unfold[(2sec-1)*RandomChoice[{-1,1},l]]]),
 "?bs"|"+?bs":>(m=Join[m,RandomSample[unfold[2sec-1]]]),
 "-?bs":>(m=Join[m,RandomSample[unfold[1-2sec]]]),
 "\[PlusMinus]?bs":>(m=Join[m,RandomSample[unfold[(2sec-1)*RandomChoice[{-1,1},l]]]]),
@@ -2034,6 +2041,7 @@ SolvejSector::dim="Please, set dimension to be a symbol. Use SetDim[\[Ellipsis]]
 
 SolvejSector[nm_Symbol,opts:OptionsPattern[]]:=
 Module[{res,us=UniqueSectors[nm],drop},
+LiteRedPrint[Style["About to solve "<>ToString[Length[us]]<>" uniques sectors of "<>ToString[nm]<>" basis.",Bold]];
 drop=Replace[{OptionValue[First],OptionValue[After]},{
 {Automatic,js1_js}:>Replace[Position[us,js1,{1},1],{{{n_}}:>n,{}->-1}],
 {js1_js,Automatic}:>Replace[Position[us,js1,{1},1],{{{n_}}:>n-1,{}->-1}],
@@ -2095,10 +2103,10 @@ init,clean,submit,solve,collect
 CurrentState[nm,SolvejSector]=False;
 CheckAbort[
 (* Processing options *)
-{indices,searchDepth,maxDepth,level,useSR,disksave,diskreco,onmis,tc,tct,sf,usefer,jsorder}={Replace[OptionValue[NamingFunction],Automatic:>$NamingFunction][nds],OptionValue@Depth,OptionValue@MaxDepth,OptionValue@Level,OptionValue@SR,Replace[OptionValue@DiskSave,True:>BasisDirectory[nm]],Replace[OptionValue@DiskRecover,{Automatic|True->True,_->False}],OptionValue@NMIs,OptionValue@TimeConstrained,OptionValue@TimeConstraint,OptionValue@SimplifyFunction,OptionValue@Fermatica`UseFermat,(*Added 18.12.2020*)Replace[OptionValue[jsOrder],{Automatic->True,order_List:>MakeOrderMatrix[js[nm,ns],order]}](*/Added 18.12.2020*)};
+{indices,searchDepth,maxDepth,level,useSR,disksave,diskreco,onmis,tc,tct,sf,usefer,jsorder}={Replace[OptionValue[NamingFunction],Automatic:>$NamingFunction][nds],OptionValue@Depth,OptionValue@MaxDepth,OptionValue@Level,OptionValue@SR,Replace[OptionValue@DiskSave,True:>BasisDirectory[nm]],Replace[OptionValue@DiskRecover,{Automatic|True->True,_->False}],OptionValue@NMIs,OptionValue@TimeConstrained,OptionValue@TimeConstraint,OptionValue@SimplifyFunction,OptionValue@Fermatica`UseFermat,(*Added 18.12.2020*)Replace[OptionValue[jsOrder],{Automatic->True}](*/Added 18.12.2020*)};
 onmis=Replace[onmis,{Automatic:>If[Contexts["Mint`"]=!={},If[IntegerQ[#],#,-1]&@Symbol["Mint`CountMIs"][jsect,Symmetric->useSR],-1],n_Integer:>n,f_:>f[jsect]}];
 (*Added 18.12.2020*)
-If[!TrueQ[jsorder],jsOrder[nm,ns]=jsorder];(*/Added 18.12.2020*)
+If[!TrueQ[jsorder],jsOrder[nm,ns]=MakeOrderMatrix[js[nm,ns],jsorder]];(*/Added 18.12.2020*)
 noRules={OptionValue[jRules]@@indices};
 Declare[Evaluate@indices,Number];
 
@@ -2133,7 +2141,7 @@ Catch[throw=False;tcf[LiteRedPrint["Sector ",jsect];If[Not[TrueQ@Not@disksave||F
 jSector[nm]=jsect;(*set default sector for proper ordering*)
 jRulesF={};
 parameters=DeleteCases[Parameters[nm],_Integer|_Rational];
-If[TrueQ[OptionValue[jGraph]],AppendTo[indicoutput,LiteRedPrintTemporary[GraphPlot[jGraph[jsect],ImageSize->Tiny]]]];
+If[TrueQ[OptionValue[jGraph]],AppendTo[indicoutput,LiteRedPrintTemporary[jGraphPlot[jsect,ImageSize->Tiny]]]];
 AppendTo[indicoutput,LiteRedPrintTemporary["    Parameters "<>ToString[parameters]<>" are assumed to be independent."]];
 If[onmis>=0,AppendTo[indicoutput,LiteRedPrintTemporary["    Expecting "<>ToString[onmis]<>" masters."]]];
 If[TrueQ[OptionValue[Sharpen]],ids=Function@@{sharpen[ids@@indices]/.MapIndexed[#->Slot@@#2&,indices]}];
@@ -2170,7 +2178,7 @@ clean[dbase,vars];
 
 indicspent=Round[AbsoluteTime[]-indicstime];
 If[indicpb<nds-Length@inds,indicpb=nds-Length@inds;indicsip=indicsip<>", "<>ToString[nds-indicpb]<>"@"<>ToString[indicspent]];
-tctr=Select[tct,First[#]<nds-indicpb&];If[tctr=!={}&&tctr[[1,2]]<indicspent,LiteRedPrint[Style["Exceeded time limit ("<>ToString[tctr[[1,2]]]<>") for restricting to "<>ToString[tctr[[1,1]]]<>" symbolic indices. Exiting SolvejSector with $Failed\[Ellipsis]",Red]];Throw[$Failed]];
+tctr=Select[tct,First[#]<nds-indicpb&];If[tctr=!={}&&tctr[[1,2]]<indicspent,LiteRedPrint[Style["Exceeded time limit ("<>ToString[tctr[[1,2]]]<>") for restricting to "<>ToString[tctr[[1,1]]]<>" symbolic indices. Exiting SolvejSector with $Failed\[Ellipsis]",Red]];throw=True;Throw[$Failed]];
 If[tctr==={},tc1=Infinity,tc1=tctr[[1,2]]-indicspent+1];
 TimeConstrained[
 startps=(indices/.#)&/@cases;
@@ -4220,6 +4228,9 @@ D[expr,s,NonConstants->jVars[expr]]/.HoldPattern[D[jj_j,s,NonConstants->_]]:>(to
 ];
 
 
+Dinv[expr_,s_List]:=Dinv[expr,#]&/@s;
+
+
 SetAttributes[dinv,{HoldAll}];
 
 
@@ -4235,13 +4246,16 @@ fromjps[jj_]:=Fromj[jj]/Times@@(Ds[First[jj]]^PowerShifts[First[jj]])
 tojps[nm_,jj_]:=Toj[nm,Factor[Times@@(Ds[nm]^PowerShifts[nm])*jj]]
 
 
+MakeDSystem::usage="MakeDSystem[j_,toj_:{},x_] constructs matrix M in the differential system \!\(\*SubscriptBox[\(\[PartialD]\), \(x\)]\)j=Mj. The second argument toj corresponds to additional rules applied after reduction. If x is a list of variables, the result is also a list of the corresponding matrices.";
+
+
 MakeDSystem::err="Forgotten tomis? The derivative is not expressed via `1`.";
 
 
-MakeDSystem[{mis_List,tomis_List}|mis_List,tomis1_List:{},x_]:=Module[{tomis2=Replace[{tomis},{{}->tomis1,{tm_List}:>tm}],eqs,Mi},
-eqs=IBPReduce[Dinv[mis,x]]/.tomis2;
+MakeDSystem[mis_List,tomis_List:{},x_]:=Module[{eqs,Mi},
+eqs=IBPReduce[Dinv[mis,x]]/.tomis;
 Mi=Outer[Coefficient,eqs,mis];
-If[!MatchQ[Collectj[eqs-Mi . mis,Factor],{0..}],Message[MakeDSystem::err,mis]];
+If[!MatchQ[Flatten@Collectj[eqs-Mi . mis,Factor],{0..}],Message[MakeDSystem::err,mis]];
 Mi
 ]
 
