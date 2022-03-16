@@ -166,7 +166,11 @@ Function IncRowech(mat,eqs,ind,l,h,h1,i,o,p,j,w,c) =
         h := Firstcol([mat],l);
         if h = 0 then l:-;&> fi;
       fi fi
-    od
+    od;
+    if h>0 then
+      c:=-1/mat[l,h];
+      for j = [mat]l do mat[l,j] := mat[l,j]*c od
+    fi
   fi;
   l.;
 
