@@ -289,7 +289,7 @@ GenerateFPIBP;jsFPIBP;FPIBP;
 LiteRed`Private`LiteRedPrint["**************** ",Style["LiteRed v"<>ToString[$LiteRedVersion],{Bold,Lighter@Red}]," ********************\n\
 Author: Roman N. Lee, Budker Institute of Nuclear Physics, Novosibirsk.\n\
 Release Date: "<>$LiteRedReleaseDate<>"\n\
-Timestamp: "<>DateString[FileDate[$InputFileName]]<>"\nRead from:"<>$InputFileName<>" (CRC32:"<>ToString[FileHash[$InputFileName,"CRC32"]]<>")\n\nLiteRed stands for ",Style["L",{Lighter@Red}],"oop ",Style["i",{Lighter@Red}],"n",Style["te",{Lighter@Red}],"grals ",Style["Red",{Lighter@Red}],"uction.\n\
+Timestamp: "<>DateString[FileDate[$InputFileName]]<>"\nRead from:"<>$InputFileName<>" (CRC32:"<>ToString[FileHash[$InputFileName,"CRC32"]]<>","<>ToString[FileHash[Select[FileNames[$LiteRedHomeDirectory<>"FermatCode/*"],Not@*DirectoryQ],"CRC32"]]<>")\n\nLiteRed stands for ",Style["L",{Lighter@Red}],"oop ",Style["i",{Lighter@Red}],"n",Style["te",{Lighter@Red}],"grals ",Style["Red",{Lighter@Red}],"uction.\n\
 The package is designed for the search and application of the Integration-By-Part reduction rules. \
 It also contains some other useful tools.\n\nSee ?LiteRed`* for a list of functions. "];
 
@@ -2345,7 +2345,7 @@ cleandb[dbase_,vars_]:=(ToExpression[dbase[[1]]<>"={0\[Rule]0};"];dbase[[-1]]={}
 SetAttributes[fcleandb,HoldAll];
 fcleandb[dbase_,vars_]:=Module[{dbname=First@dbase},
 OpenWrite[dbname];
-WriteString[dbname,Fermatica`Private`var2str[Array["v"<>ToString[#]&,{Length@vars}]]<>"\n\n"<>ReadString[$LiteRedHomeDirectory<>"FermatCode/sol"(*<>Global`ext*)]];
+WriteString[dbname,Fermatica`Private`var2str[Array["v"<>ToString[#]&,{Length@vars}]]<>"\n\n"<>ReadString[$LiteRedHomeDirectory<>"FermatCode/sol"]];
 Close[dbname];
 dbase[[2]]=vars;
 dbase[[-1]]={};
@@ -4086,7 +4086,7 @@ StyleBox[\"xs\", \"TI\"]\),\n  2. \!\(\*
 StyleBox[\"U\", \"TI\"]\)=\!\(\*UnderscriptBox[\(\[Product]\), \(i\)]\)\!\(\*SubscriptBox[
 StyleBox[\"U\", \"TI\"], \(i\)]\).\n  3. \!\(\*
 StyleBox[\"F\", \"TI\"]\)=\!\(\*UnderscriptBox[\(\[Sum]\*SubscriptBox[
-StyleBox[\"F\", \"TI\"], \"i\"]\), \(i\)]\)\!\(\*UnderscriptBox[\(\[Product]\), \(j \[NotEqual] i\)]\)\!\(\*SubscriptBox[
+StyleBox[\"F\", \"TI\"], \"i\"]\), \(i\)]\)\!\(\*UnderscriptBox[\(\[Product]\), \(j\.01 \[NotEqual] \.01i\)]\)\!\(\*SubscriptBox[
 StyleBox[\"U\", \"TI\"], \(i\)]\).";
 
 
@@ -4252,9 +4252,15 @@ MakeDSystem::usage="MakeDSystem[j_,toj_:{},x_] constructs matrix M in the differ
 MakeDSystem::err="Forgotten tomis? The derivative is not expressed via `1`.";
 
 
-MakeDSystem[mis_List,tomis_List:{},x_]:=Module[{eqs,Mi},
+MakeDSystem[mis:{__j},x_]:=MakeDSystem[{mis,{}},x]
+
+
+MakeDSystem[{mis_List,tomis_List:{}},x_]:=Module[{eqs,Mi},
+If[Head[x]===List,
+eqs=IBPReduce[Dinv[mis,#]&/@x]/.tomis;
+Mi=Outer[Coefficient,#,mis]&/@eqs,
 eqs=IBPReduce[Dinv[mis,x]]/.tomis;
-Mi=Outer[Coefficient,eqs,mis];
+Mi=Outer[Coefficient,eqs,mis]];
 If[!MatchQ[Flatten@Collectj[eqs-Mi . mis,Factor],{0..}],Message[MakeDSystem::err,mis]];
 Mi
 ]
