@@ -32,13 +32,14 @@ If[$VersionNumber>=12.2,SetOptions[ValueQ,Method->"Legacy"]];
 LiteRed`$LiteRedHomeDirectory=DirectoryName[$InputFileName];
 
 
-LiteRed`Private`LRNeeds[context_String,files:{___String}]:=Quiet[Needs[context,#]&/@files];
+LiteRed`Private`RNLeeds[context_String,files:{___String}]:=Quiet[Needs[context,#]&/@files];
 
 
 Types`TypesLog=False;
-LiteRed`Private`LRNeeds["Types`",{"RNL`Types`",LiteRed`$LiteRedHomeDirectory<>"RNL/Types.m"}];
-LiteRed`Private`LRNeeds["LinearFunctions`",{"RNL`LinearFunctions`",LiteRed`$LiteRedHomeDirectory<>"RNL/LinearFunctions.m"}];
-LiteRed`Private`LRNeeds["Numbers`",{"RNL`Numbers`",LiteRed`$LiteRedHomeDirectory<>"RNL/Numbers.m"}];Vectors`VectorsLog=False;LiteRed`Private`LRNeeds["Vectors`",{"RNL`Vectors`",LiteRed`$LiteRedHomeDirectory<>"RNL/Vectors.m"}];
+LiteRed`Private`RNLeeds["Types`",{"RNL`Types`",LiteRed`$LiteRedHomeDirectory<>"RNL/Types.m"}];
+LiteRed`Private`RNLeeds["LinearFunctions`",{"RNL`LinearFunctions`",LiteRed`$LiteRedHomeDirectory<>"RNL/LinearFunctions.m"}];
+LiteRed`Private`RNLeeds["Numbers`",{"RNL`Numbers`",LiteRed`$LiteRedHomeDirectory<>"RNL/Numbers.m"}];Vectors`VectorsLog=False;LiteRed`Private`RNLeeds["Vectors`",{"RNL`Vectors`",LiteRed`$LiteRedHomeDirectory<>"RNL/Vectors.m"}];
+
 
 
 BeginPackage["LiteRed`",{"Vectors`","LinearFunctions`","Numbers`","Types`"}]
@@ -233,6 +234,7 @@ FactorizeFP;FactorizejSector;
 PolyNForm;
 PolySignature;
 PolySignaturePermutations;
+CRulesLE;
 (*FromPolySignature;
 FromPolySignaturePermutation;*)
 
@@ -247,9 +249,6 @@ DiskRecover;
 IBPReduce;
 IBPSelect;
 (*    DWeight;*)
-
-
-
 
 
 (*GenerateDRR;*)(*not yet implemented*)
@@ -286,18 +285,18 @@ GenerateFPIBP;jsFPIBP;FPIBP;
 {ToDShifts,FromDShifts,NumeratorsToDShifts,FindSymmetriesDen,UniqueSectorsDen,MappedSectorsDen,SolvejSectorDen,SolvejSectorD,jRulesDen,jSymmetriesDen,IBPReduceDen,NumDepth};
 
 
+ SectorLayer;jLevel
+
+
+GramM;
+
+
 LiteRed`Private`LiteRedPrint["**************** ",Style["LiteRed v"<>ToString[$LiteRedVersion],{Bold,Lighter@Red}]," ********************\n\
 Author: Roman N. Lee, Budker Institute of Nuclear Physics, Novosibirsk.\n\
 Release Date: "<>$LiteRedReleaseDate<>"\n\
 Timestamp: "<>DateString[FileDate[$InputFileName]]<>"\nRead from:"<>$InputFileName<>" (CRC32:"<>ToString[FileHash[$InputFileName,"CRC32"]]<>","<>ToString[FileHash[Select[FileNames[$LiteRedHomeDirectory<>"FermatCode/*"],Not@*DirectoryQ],"CRC32"]]<>")\n\nLiteRed stands for ",Style["L",{Lighter@Red}],"oop ",Style["i",{Lighter@Red}],"n",Style["te",{Lighter@Red}],"grals ",Style["Red",{Lighter@Red}],"uction.\n\
 The package is designed for the search and application of the Integration-By-Part reduction rules. \
 It also contains some other useful tools.\n\nSee ?LiteRed`* for a list of functions. "];
-
-
- SectorLayer;jLevel
-
-
-GramM;
 
 
 Begin["`Private`"]
@@ -594,9 +593,9 @@ wm=Join[{ConstantArray[1,2*nds],Join[ConstantArray[1,nds],ConstantArray[0,nds]]}
 (*A strange way to avoid problems with valued variables. Could be much simpler if assuming d1,d2,...,n1,n2,... are not set*)
 dsns=ToExpression["Hold[Unevaluated@{"<>StringJoin@@Riffle[("d"<>#&/@Array[ToString,nds]),","]<>"},Unevaluated@{"<>StringJoin@@Riffle[("n"<>#&/@Array[ToString,nds]),","]<>"}]"];
 Function[{ds,ns},Block[ds,Block[ns,
-PFGB[nm]^=HoldForm@@{{ds,ns,GBasisHack[Join[ds ns-1,Relations[nm]@@ns],Join[ds,ns],MonomialOrder->wm]}};
+PFGB[nm]^=HoldForm@@{{ds,ns,GBasisHack[Join[ds ns-1,Relations[nm]@@ns],Join[ds,ns],MonomialOrder->wm],wm}};
 ]]]@@dsns;
-LiteRedPrint["Groebner basis for partial fractioning is generated.\n    PFGB["<>ToString[nm]<>"] \[LongDash] a list  (wrapped in HoldForm) {denominators,numerators,basis}."]
+LiteRedPrint["Groebner basis for partial fractioning is generated.\n    PFGB["<>ToString[nm]<>"] \[LongDash] a list  (wrapped in HoldForm) {denominators,numerators,basis,ordermatrix}."]
 ]
 
 
@@ -617,8 +616,8 @@ StyleBox[\"set\", \"TI\"]\),\[Ellipsis]].";
 PFReduce[expr_]:=Module[{ex=expr,bs=Union[Cases[expr,j[b_,__]:>b,{0,\[Infinity]}]],wm,nds},
 Scan[Function[b,
 nds=NDs[b];
-wm=Join[{ConstantArray[1,2*nds],Join[ConstantArray[1,nds],ConstantArray[0,nds]]},Delete[IdentityMatrix[2*nds],{{nds},{2*nds}}]];
-Function[{ds,ns,gb},Block[ds,Block[ns,
+(*(*Deleted 06.09.2022*)wm=Join[{ConstantArray[1,2*nds],Join[ConstantArray[1,nds],ConstantArray[0,nds]]},Delete[IdentityMatrix[2*nds],{{nds},{2*nds}}]];(*/Deleted 06.09.2022*)*)
+Function[{ds,ns,gb,(*Added 06.09.2022*)wm(*/Added 06.09.2022*)},Block[ds,Block[ns,
 ex=Plus@@(((j[b,##]&@@Subtract@@Partition[#1,Length@ds]) *#2)&@@@CoefficientRules[Last@PolynomialReduce[ex/.j[b,k__]:>Times@@MapThread[If[Positive[#1],#2^#1,#3^(-#1)]&,{{k},ds,ns}],gb,Join[ds,ns],MonomialOrder->wm],Join[ds,ns]]);
 ]]]@@Delete[PFGB[b],{1,0}]],bs];
 ex]
@@ -627,16 +626,6 @@ ex]
 PFSuggestBases::usage="PFSuggestBases[\!\(\*
 StyleBox[\"dsset\", \"TI\"]\)] suggests set of bases to cover the \!\(\*
 StyleBox[\"dsset\", \"TI\"]\). ";
-
-
-PFReduce[expr_]:=Module[{ex=expr,bs=Union[Cases[expr,j[b_,__]:>b,{0,\[Infinity]}]],wm,nds},
-Scan[Function[b,
-nds=NDs[b];
-wm=Join[{ConstantArray[1,2*nds],Join[ConstantArray[1,nds],ConstantArray[0,nds]]},Delete[IdentityMatrix[2*nds],{{nds},{2*nds}}]];
-Function[{ds,ns,gb},Block[ds,Block[ns,
-ex=Plus@@(((j[b,##]&@@Subtract@@Partition[#1,Length@ds]) *#2)&@@@CoefficientRules[Last@PolynomialReduce[ex/.j[b,k__]:>Times@@MapThread[If[Positive[#1],#2^#1,#3^(-#1)]&,{{k},ds,ns}],gb,Join[ds,ns],MonomialOrder->wm],Join[ds,ns]]);
-]]]@@Delete[PFGB[b],{1,0}]],bs];
-ex]
 
 
 NewDsBasis::usage="NewDsBasis[\!\(\*
@@ -1118,9 +1107,10 @@ MakeOrderMatrix[] prints an extended help (in particular, possible values for sp
 
 
 MakeOrderMatrix::bad="Order matrix `1` is not definitive.";
+MakeOrderMatrix::err="Specification `1` is not defined.";
 
 
-MakeOrderMatrix[]:=Print[Style["MakeOrderMatrix[{0, 1, \[Ellipsis]}, {spec1, spec2, \[Ellipsis]}]",Bold]," constructs the order matrix for the sector {0,1,\[Ellipsis]}. Each spec1,spec2,\[Ellipsis] can be one of the following:\n    \"\[PlusMinus]np\" \[LongDash] plus/minus total power of numerators,\n    \"+dp\"/\"-dp\" \[LongDash] plus/minus total power of denominators,\n    \"+ns\"/\"-ns\" \[LongDash] plus/minus numerator powers,\n    \"\[PlusMinus]ds\" \[LongDash] plus/minus denominator powers,\n    \[PlusMinus]1,\[PlusMinus]2,etc \[LongDash] power of the corresponding denominator or numerator.\n    \"\[PlusMinus]ds\"/\"\[PlusMinus]ns\" \[LongDash] random sign denominator/numerator powers,\n    \"?ds\"/\"?ns\" \[LongDash] random order of denominator/numerator powers,\n    \"?bs\" \[LongDash] random order of denominator and numerator powers,\nPlus sign can be omitted. Combinations of \[PlusMinus] and ?, like \[PlusMinus]?ds, are possible.\n",Style["MakeOrderMatrix[{0,1,\[Ellipsis]}]",Bold]," is equivalent to ",Style["MakeOrderMatrix[{0,1,\[Ellipsis]},{\"np\",\"-ds\",\"-ns\"}]",Bold],".\n",Style["MakeOrderMatrix[js[nm,0,1,\[Ellipsis]],{\[Ellipsis]}]",Bold]," is equivalent to ",Style["MakeOrderMatrix[{0,1,\[Ellipsis]},{\[Ellipsis]}].",Bold]];
+MakeOrderMatrix[]:=Print[Style["MakeOrderMatrix[{0, 1, \[Ellipsis]}, {spec1, spec2, \[Ellipsis]}]",Bold]," constructs the order matrix for the sector {0,1,\[Ellipsis]}. Each spec1,spec2,\[Ellipsis] can be one of the following:\n    \"\[PlusMinus]cp\" \[LongDash] plus/minus total power of cut denominators,\n    \"\[PlusMinus]np\" \[LongDash] plus/minus total power of numerators,\n    \"+dp\"/\"-dp\" \[LongDash] plus/minus total power of denominators,\n    \"+ns\"/\"-ns\" \[LongDash] plus/minus numerator powers,\n    \"\[PlusMinus]ds\" \[LongDash] plus/minus denominator powers,\n    \[PlusMinus]1,\[PlusMinus]2,etc \[LongDash] power of the corresponding denominator or numerator.\n    \"\[PlusMinus]ds\"/\"\[PlusMinus]ns\" \[LongDash] random sign denominator/numerator powers,\n    \"?ds\"/\"?ns\" \[LongDash] random order of denominator/numerator powers,\n    \"?bs\" \[LongDash] random order of denominator and numerator powers,\nPlus sign can be omitted. Combinations of \[PlusMinus] and ?, like \[PlusMinus]?ds, are possible.\n",Style["MakeOrderMatrix[{0,1,\[Ellipsis]}]",Bold]," is equivalent to ",Style["MakeOrderMatrix[{0,1,\[Ellipsis]},{\"np\",\"-ds\",\"-ns\"}]",Bold],".\n",Style["MakeOrderMatrix[js[nm,0,1,\[Ellipsis]],{\[Ellipsis]}]",Bold]," is equivalent to ",Style["MakeOrderMatrix[{0,1,\[Ellipsis]},{\[Ellipsis]}].",Bold]];
 
 
 MakeOrderMatrix[js[nm_,ns:(0|1)...],spec___]:=MakeOrderMatrix[{ns}*(1-2*CutDs[nm]),spec]
@@ -1174,7 +1164,8 @@ spec,
 "-?bs":>(m=Join[m,RandomSample[unfold[1-2sec]]]),
 "\[PlusMinus]?bs":>(m=Join[m,RandomSample[unfold[(2sec-1)*RandomChoice[{-1,1},l]]]]),
 i_Integer?Positive:>AppendTo[m,RotateRight[PadLeft[{1},l],i]],
-i_Integer?Negative:>AppendTo[m,RotateRight[PadLeft[{-1},l],-i]]
+i_Integer?Negative:>AppendTo[m,RotateRight[PadLeft[{-1},l],-i]],
+a_:>Message[MakeOrderMatrix::err,a]
 },
 {1}
 ];
@@ -2127,7 +2118,7 @@ If[Not@TrueQ@Not@disksave&&diskreco&&FileExistsQ[disksave<>"/"<>file],
 Block[{Last=Identity},
 (*(*Had we not worried for backward compatibility, we could have used*) {jsorder,jRulesF}=Get[disksave<>"/"<>file]; *)
 jRulesF=Get[disksave<>"/"<>file];If[MatchQ[jRulesF,{_?MatrixQ,_List}],{jsorder,jRulesF}=jRulesF]
-];(*/Modified 18.12.2020*)If[jRulesF==="reserved",LiteRedPrint["The sector ",jsect," is likely being solved by another kernel. Execute SolvejSector["<>ToString[jsect]<>",DiskRecover\[Rule]True] later to update MIs["<>ToString[nm]<>"]."];Return[Indeterminate],
+];(*/Modified 18.12.2020*)If[jRulesF==="reserved",LiteRedPrint["Sector ",jsect," is likely being solved by another kernel. Execute SolvejSector["<>ToString[jsect]<>",DiskRecover\[Rule]True] later to update MIs["<>ToString[nm]<>"]."];Return[Indeterminate],
 misFound=j[nm,##]&@@indices/.#&/@{ToRules[LogicalExpand@Reduce[Not[Or@@jRulesF[[All,1,2]]]&&constr(*(*Deleted 25.03.2018*)sectcond(*/Deleted 25.03.2018*)*),Integers]]}];
 If[disksave===BasisDirectory[nm],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[BasisDirectory["<>ToString[nm]<>"]<>\"/"<>file<>"\"]"],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[\""<>disksave<>"/"<>file<>"\"]"]];(*Modified 18.12.2020*)If[TrueQ[jsorder]||jsOrder[nm,ns]===jsorder,
 LiteRedPrint["Sector ",jsect," is recovered from file."],
@@ -4067,6 +4058,19 @@ PolyMapToSignature[p_,vars_,{coefs1_List,inds_List,b1_Integer}]:=If[#==={},$Fail
 todo["implement inverse of PolySignature"];
 
 
+CRulesLE::usage="CRulesLE[cr1,cr2] gives True iff a polynomial corresponding to cr1 can be obtained from the one corresponding to cr2 by putting some variables to zero. Here cr1,cr2 are the coefficient rules.\n\n\!\(\*
+StyleBox[\"Example\",\nFontWeight->\"Bold\"]\)\!\(\*
+StyleBox[\":\",\nFontWeight->\"Bold\"]\) CRulesLE[CoefficientRules[x1+1,{x1}],CoefficientRules[2\!\(\*SuperscriptBox[\(x1\), \(2\)]\)+x2+1,{x1,x2}]] gives True, since p1=x1+1 can be obtained from p2=2\!\(\*SuperscriptBox[\(x1\), \(2\)]\)+x2+1 by putting x1=0 and then renaming x2\[Rule]x1.";
+Options[CRulesLE]={Signature->True};
+CRulesLE[{},_]:=True;
+CRulesLE[_,{}]:=False;
+CRulesLE[cr1_,cr2_,OptionsPattern[]]:=Module[{nv1= Length[cr1[[1,1]]],nv2= Length[cr2[[1,1]]],s1},If[nv1>nv2,Return[False]];
+(*calculate signature of the first list if Signature->True*)
+If[OptionValue[Signature],s1=First[LiteRed`Private`crulesNF[cr1]],s1=cr1];
+Catch[Function[p,If[s1===First[LiteRed`Private`crulesNF[MapAt[Pick[#,p,1]&,Select[cr2,MatchQ[First[#],p/. 1->_]&],{All,1}]]],Throw[True]]]/@Permutations[PadLeft[ConstantArray[1,nv1],nv2]];False]
+]
+
+
 FactorizeFP::usage="FactorizeFP[\!\(\*
 StyleBox[\"U\", \"TI\"]\),\!\(\*
 StyleBox[\"F\", \"TI\"]\),\!\(\*
@@ -5401,7 +5405,7 @@ permutations[set_List]:=Module[{h},Flatten[Outer[h@@Join[##]&,##,1]&@@Permutatio
 permutations[{{}...}]:={{}};
 
 
-If[False&&FindLibrary["APtsort"]=!=$Failed,tsp=LibraryFunctionLoad["APtsort", "tableSortingPermutationsMI",{{Integer, 2},True|False},{Integer, 2}(*Integer*)];
+If[FindLibrary["APtsort"]=!=$Failed,tsp=LibraryFunctionLoad["APtsort", "tableSortingPermutationsMI",{{Integer, 2},True|False},{Integer, 2}(*Integer*)];
 tableSortingPermutations[matr_?MatrixQ,fl:(True|False)]:=((*WriteString["stdout","C"];*)TakeDrop[#,Length@matr]&/@tsp[matr,fl]);
 Print["Found \"APtsort\" library. "],
 SplitSortBy[list_,f_]:=Map[First,SplitBy[SortBy[{#,f@#}&/@list,Last],Last],{2}];
@@ -5427,11 +5431,11 @@ polyNF[p_]:=polyNF[p,Variables[p]];
 polyNF[0,vars_List]:={{},Permutations[vars]}
 polyNF[p_,vars_List]/;FreeQ[p,Alternatives@@vars]:={{0&/@vars->p},Permutations[vars]}
 polyNF[p_,vars_List]:=Module[
-{t,ss,r,c=Length@vars,pp,sig},
+{t,ss,(*(*Deleted 03.08.2022*)r,c=Length@vars,(*/Deleted 03.08.2022*)*)pp,sig},
 t=Transpose[List@@@CoefficientRules[p,vars]];
 ss=MapIndexed[#->First@#2&,Union[Last@t]];
 t=MapThread[Prepend,{First@t,Replace[Last@t,ss,{1}]}](*table constructed*);
-r=Length@t;
+(*(*Deleted 03.08.2022*)r=Length@t;(*/Deleted 03.08.2022*)*)
 (*pp=TakeDrop[#,r]&/@matrixSP[t,True];*)
 pp=tableSortingPermutations[t,True];
 (*Calculate signature*)
@@ -5439,6 +5443,21 @@ sig=Transpose[t[[pp[[1,1]],pp[[1,2]]]]];
 (*sig={Replace[First[sig],(Reverse/@ss),{1}],FromDigits[#,b]&/@Rest[sig],b};*)
 sig=Sort@Thread[Transpose[Rest[sig]]->Replace[First[sig],(Reverse/@ss),{1}]];
 {sig,Sort[vars[[-1+Rest@Last@#]]&/@pp]}
+]
+
+
+Options[crulesNF]={Monitor->False};
+crulesNF[{}]:={{},{}}
+crulesNF[cr_List]:=Module[
+{t,ss,pp,sig},
+t=Transpose[List@@@cr];
+ss=MapIndexed[#->First@#2&,Union[Last@t]];
+t=MapThread[Prepend,{First@t,Replace[Last@t,ss,{1}]}](*table constructed*);
+pp=tableSortingPermutations[t,True];
+(*Calculate signature*)
+sig=Transpose[t[[pp[[1,1]],pp[[1,2]]]]];
+sig=Sort@Thread[Transpose[Rest[sig]]->Replace[First[sig],(Reverse/@ss),{1}]];
+{sig,Sort[-1+Rest@Last@#&/@pp]}
 ]
 
 
