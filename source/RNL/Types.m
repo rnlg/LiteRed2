@@ -43,8 +43,8 @@ as variables of type \[ScriptT]\[ScriptY]\[ScriptP]\[ScriptE]2 etc. and calls In
 InitFunction::usage="InitFunction[\[ScriptV]\[ScriptA]\[ScriptR],\[ScriptT]\[ScriptY]\[ScriptP]\[ScriptE]] is called by Declare[\[ScriptV]\[ScriptA]\[ScriptR],\[ScriptT]\[ScriptY]\[ScriptP]\[ScriptE]]. Redefine it if you want to perform some operations when the variable is declared.";
 
 
-TypeOf::usage="TypeOf[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR]] gives the type of \[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR], \n 
-TypeOf[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR],\[ScriptT]\[ScriptY]\[ScriptP]\[ScriptE]] gives True if TypeOf[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR]] is inside \[ScriptT]\[ScriptY]\[ScriptP]\[ScriptE].";
+TypeOf::usage="TypeOf[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR]] gives the type of \[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR]."
+TypeBelowQ::usage="TypeBelowQ[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR],\[ScriptT]\[ScriptY]\[ScriptP]\[ScriptE]] gives True if TypeOf[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR]] is inside \[ScriptT]\[ScriptY]\[ScriptP]\[ScriptE].";
 TypeX::usage="TypeX[<expr>] gives the pair {<type>,<expr>}";
 
 
@@ -110,7 +110,7 @@ VarQ[_]:=False;
 TypeTable[_]={{{Untyped,_}...}->Untyped,_List->Badformed};
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*TypesClearList (inactive)*)
 
 
@@ -127,7 +127,7 @@ TypesPostFunction=(Unset/@TypesClearList;TypesClearList={};#)&;
 TypesCacheFunction=(AppendTo[TypesClearList,#1];#1=#2)&*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*TypesCache, TypesClearCache  (inactive)*)
 
 
@@ -140,12 +140,18 @@ TypesCacheFunction=(AppendTo[TypesClearList,#1];#1=#2)&*)
 (*TypesClearCache[]:=(Unset/@TypesClearList;TypesClearList={});*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*TypeOf*)
 
 
 TypeOf[expr_]:=First[TypeX[Unevaluated[expr]]];
-TypeOf[a_,t_]:=MatchQ[TypeOf[Unevaluated[a]],TypesBelow[t]];
+
+
+(* ::Subsection:: *)
+(*TypeBelowQ*)
+
+
+TypeBelowQ[a_,t_]:=MatchQ[TypeOf[Unevaluated[a]],TypesBelow[t]];
 
 
 (* ::Subsection:: *)

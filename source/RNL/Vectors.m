@@ -397,11 +397,11 @@ SetDim[Global`\[ScriptCapitalD]];
 (*VecQ,VecIndQ,TCompQ,TComponentQ,VecVarQ,VPolyQ*)
 
 
-VecQ[x_]:=TypeOf[Unevaluated[x],Vector]
-VecIndQ[x_]:=TypeOf[Unevaluated[x],VectorIndex]
-TCompQ[x_]:=TypeOf[Unevaluated[x],_TComponent]
-TComponentQ[x_,u_,d_]:=TypeOf[Unevaluated[x],TComponent[u,d,_List]]
-VecVarQ[x_Symbol]:=TypeOf[Unevaluated[x],Vector];
+VecQ[x_]:=TypeBelowQ[Unevaluated[x],Vector]
+VecIndQ[x_]:=TypeBelowQ[Unevaluated[x],VectorIndex]
+TCompQ[x_]:=TypeBelowQ[Unevaluated[x],_TComponent]
+TComponentQ[x_,u_,d_]:=TypeBelowQ[Unevaluated[x],TComponent[u,d,_List]]
+VecVarQ[x_Symbol]:=TypeBelowQ[Unevaluated[x],Vector];
 VecVarQ[x_]=False;
 
 
@@ -479,7 +479,7 @@ MakeBoxes[VIContract[a_?TCQ],TraditionalForm]:=RowBox[{"\[LeftAngleBracket]",Mak
 SetAttributes[VIContract,{OneIdentity,Flat}];
 VIContract/:HoldPattern[TypeX[t:VIContract[v_]]]:=TypeX[Unevaluated[v]];
 HoldPattern[Partial[VIContract[a_],b__]]:=VIContract[Partial[a,b]];
-VIContract[x_]:=x/;!TypeOf[x,TComponent[_,_,{__}]];
+VIContract[x_]:=x/;!TypeBelowQ[x,TComponent[_,_,{__}]];
 HoldPattern[VIContract'[x_]]=1;
 
 
@@ -492,9 +492,9 @@ HoldPattern[LowerIndex[SupIndex[(x_?VecQ),i_],i_->j_]]:=SubIndex[x,j];
 HoldPattern[LowerIndex[MetricTensor[{k1___,i_,k2___},{l___}],i_->j_]]:=MetricTensor[{k1,k2},Sort[{j,l}]];
 HoldPattern[LowerIndex[VGrad[f_,{k1___,i_,k2___},{l___}][a_],i_->j_]]:=VGrad[f,{k1,k2},{j,l}][a];
 HoldPattern[LowerIndex[x_*z_,i_->j_]]:=x*LowerIndex[z,i->j]/;FreeQ[x,i];
-HoldPattern[LowerIndex[x_,i_->j_]/;TypeOf[x,TComponent[_,{___,i,___},_]]]:=(x/.i->j)
+HoldPattern[LowerIndex[x_,i_->j_]/;TypeBelowQ[x,TComponent[_,{___,i,___},_]]]:=(x/.i->j)
 HoldPattern[LowerIndex[Integrate[exp_,a__],i_->j_]]:=Integrate[#,a]&[LowerIndex[exp,i->j]];
-HoldPattern[LowerIndex[x_,i_->j_]/;(i=!=j)&&TypeOf[x,TComponent[{___,i,___},_,_]]]:=MetricTensor[{},{i,j}]*x
+HoldPattern[LowerIndex[x_,i_->j_]/;(i=!=j)&&TypeBelowQ[x,TComponent[{___,i,___},_,_]]]:=MetricTensor[{},{i,j}]*x
 LowerIndex[x_,i_?VecIndQ]:=LowerIndex[x,i->i]/;!MatchQ[Head[i],Rule|List];
 LowerIndex[x_,i_List]:=Fold[LowerIndex,x,i];
 HoldPattern[UpperIndex[x:(_Plus|_VIContract),y_]]:=UpperIndex[#,y]&/@x;
@@ -502,9 +502,9 @@ HoldPattern[UpperIndex[SubIndex[(x_?VecQ),i_],i_->j_]]:=SupIndex[x,j];
 HoldPattern[UpperIndex[MetricTensor[{k___},{l1___,i_,l2___}],i_->j_]]:=MetricTensor[Sort[{j,k}],{l1,l2}];
 HoldPattern[UpperIndex[VGrad[f_,{k___},{l1___,i_,l2___}][a_],i_->j_]]:=VGrad[f,{j,k},{l1,l2}][a];
 HoldPattern[UpperIndex[x_*z_,i_->j_]]:=x*UpperIndex[z,i->j]/;FreeQ[x,i];
-HoldPattern[UpperIndex[x_,i_->j_]/;TypeOf[x,TComponent[{___,i,___},_,_]]]:=(x/.i->j)
+HoldPattern[UpperIndex[x_,i_->j_]/;TypeBelowQ[x,TComponent[{___,i,___},_,_]]]:=(x/.i->j)
 HoldPattern[UpperIndex[Integrate[exp_,a__],i_->j_]]:=Integrate[#,a]&[UpperIndex[exp,i->j]]
-HoldPattern[UpperIndex[x_,i_->j_]/;(i=!=j)&&TypeOf[x,TComponent[_,{___,i,___},_]]]:=MetricTensor[{i,j},{}]*x
+HoldPattern[UpperIndex[x_,i_->j_]/;(i=!=j)&&TypeBelowQ[x,TComponent[_,{___,i,___},_]]]:=MetricTensor[{i,j},{}]*x
 UpperIndex[x_,i_]:=UpperIndex[x,i->i]/;!MatchQ[Head[i],Rule|List];
 UpperIndex[x_,i_List]:=Fold[UpperIndex,x,i];
 
@@ -532,7 +532,7 @@ rn[x_,{b__,a_}]:=(Do[If[y=Hold[Unevaluated[x]]/.a->{b}[[j]];MatchQ[TypeOf@@y,Num
 rn[x_,_]:=x;
 f={#,","}&;
 ReduceDummies[x_]:=ReduceDummies[x,True->True]
-ReduceDummies[x_,opt_Rule]:=If[TypeOf[x,(_TComponent|Number)],Module[{t},ri={};t=rn[x,Dummies[x]];((*Print["removing ",Sequence@@Flatten[f/@{##}]];*)If[TrueQ[RemoveDummies/.opt/.Options[ReduceDummies]],VectorIndices=DeleteCases[VectorIndices,Alternatives[##]];Remove[##]])&@@Cases[Union[ri],y_/;MatchQ[y,VectorIndices]];t],Print["Not a correct structure"];x]
+ReduceDummies[x_,opt_Rule]:=If[TypeBelowQ[x,(_TComponent|Number)],Module[{t},ri={};t=rn[x,Dummies[x]];((*Print["removing ",Sequence@@Flatten[f/@{##}]];*)If[TrueQ[RemoveDummies/.opt/.Options[ReduceDummies]],VectorIndices=DeleteCases[VectorIndices,Alternatives[##]];Remove[##]])&@@Cases[Union[ri],y_/;MatchQ[y,VectorIndices]];t],Print["Not a correct structure"];x]
 
 
 (* ::Subsubsection:: *)
@@ -543,7 +543,7 @@ Options[DummyEliminate]={RemoveDummies->False};
 
 
 VErule2:={SubIndex[x_?VecQ,n_?VecIndQ]*SupIndex[y_?VecQ,n_]:>(AppendTo[ni,n];sp[x,y]),HoldPattern[MetricTensor[{m1___,n_?VecIndQ,m2___},k1_List]]*HoldPattern[MetricTensor[k2_List,{m3___,n_,m4___}]]:>MetricTensor[Join[{m1,m2},k2],Join[k1,{m3,m4}]],
-(HoldPattern[MetricTensor[{n_,m_}|{m_,n_},{}]]*x_):>(AppendTo[ni,n];UpperIndex[x,n->m])/;TypeOf[x,HoldPattern[TComponent[{___},{___,n,___},_]]],(HoldPattern[MetricTensor[{m_},{n_}]]*x_):>(AppendTo[ni,n];UpperIndex[x,n->m])/;TypeOf[x,HoldPattern[TComponent[{___,n,___},{___},_]]],(HoldPattern[MetricTensor[{},{n_,m_}|{m_,n_}]]*x_):>(AppendTo[ni,n];LowerIndex[x,n->m])/;TypeOf[x,HoldPattern[TComponent[{___,n,___},{___},_]]],(HoldPattern[MetricTensor[{n_},{m_}]]*x_):>(AppendTo[ni,n];LowerIndex[x,n->m])/;TypeOf[x,HoldPattern[TComponent[{___},{___,n,___},_]]]};
+(HoldPattern[MetricTensor[{n_,m_}|{m_,n_},{}]]*x_):>(AppendTo[ni,n];UpperIndex[x,n->m])/;TypeBelowQ[x,HoldPattern[TComponent[{___},{___,n,___},_]]],(HoldPattern[MetricTensor[{m_},{n_}]]*x_):>(AppendTo[ni,n];UpperIndex[x,n->m])/;TypeBelowQ[x,HoldPattern[TComponent[{___,n,___},{___},_]]],(HoldPattern[MetricTensor[{},{n_,m_}|{m_,n_}]]*x_):>(AppendTo[ni,n];LowerIndex[x,n->m])/;TypeBelowQ[x,HoldPattern[TComponent[{___,n,___},{___},_]]],(HoldPattern[MetricTensor[{n_},{m_}]]*x_):>(AppendTo[ni,n];LowerIndex[x,n->m])/;TypeBelowQ[x,HoldPattern[TComponent[{___},{___,n,___},_]]]};
 (*f={#,","}&;   *)         
 DummyEliminate[x_Plus,opt:OptionsPattern[]]:=DummyEliminate[#,opt]&/@x;
 DummyEliminate[x_,opt:OptionsPattern[]]:=ne[x,Alternatives@@Dummies[x],OptionValue[RemoveDummies]]
