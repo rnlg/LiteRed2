@@ -2137,6 +2137,7 @@ AppendTo[indicoutput,LiteRedPrintTemporary["    Parameters "<>ToString[parameter
 If[onmis>=0,AppendTo[indicoutput,LiteRedPrintTemporary["    Expecting "<>ToString[onmis]<>" masters."]]];
 If[TrueQ[OptionValue[Sharpen]],ids=Function@@{sharpen[ids@@indices]/.MapIndexed[#->Slot@@#2&,indices]}];
 (* ********************************************************************************************************)
+(*dbg0={indices,corner,parameters};*)
 whenBad[expr_]:=WhenBad[expr,indices,corner,parameters];
 jRulesF={};
 indicnr=Length[jRulesF];
@@ -2159,7 +2160,7 @@ While[noRules=!={},
 (*Consider first case*)
 cases=Reverse@First@noRules;(*case will be a list*)
 (*If[Length@cases>1,Print[cases]];*)
-noRules=Rest@noRules;
+noRules=Rest@noRules;(*dbg=noRules;*)
 inds=Complement[indices,First/@First@cases];
 numeric=inds==={};
 If[Length@inds<=level,Break[]];
@@ -2205,7 +2206,8 @@ eqs=Flatten[(If[useSR&&numeric,Join[ids@@#,SR[nm]@@#]/.ZerojRule[nm],ids@@#])&/@
 If[eqs==={},depth++;Continue[]];
 (*/Construct equations*)
 indicnopToGo=indicnop+Length[eqs];
-submit[eqs,dbase,jsect,startp];
+(*(*Deleted 12.10.2022*)submit[eqs,dbase,jsect,startp];(*/Deleted 12.10.2022*)*)
+(*Added 12.10.2022*)submit[eqs,dbase];(*/Added 12.10.2022*)
 While[0!=solve[Except[except,pat1],dbase,ruleFound,indicnop],
 LiteRedMonitor[
 (*PrintTemporary["displacement: ",Factor[Rest[List@@First[jRules1]]-startp]];*)
@@ -2216,6 +2218,7 @@ jRules1=(#/.MapThread[#1->Expand[2#1-#2]&,{indices[[pos]],Rest[List@@First[#]][[
 {jRules1,{{rules2}}}=Reap[(*Modified 01.12.2016*)
 (j[nm,##]&@@indices/.ptrnrule)/;Evaluate[RulesToCondition[{case}]&&Not[Sow[whenBad[#[[2]]]]]]:>Evaluate[If[Head[#[[2]]]===List,{collect[#[[2,1]]],#[[2,2]]},collect[#[[2]]]]](*\[LongLeftArrow] this should also work if the second element is a pair*)(*/Modified 01.12.2016*)&@jRules1]
 ,"Constructing rule...",1];
+(*If[!FreeQ[rules2,Power[_,Except[_Integer]]],dbg1=jRules1;Abort[]];*)
 If[rules2=!=True,(*Found the rule!*)
 AppendTo[rulesFound,{RulesToCondition[{case}],rules2}];
 AppendTo[jRulesF,jRules1];
@@ -2247,6 +2250,7 @@ If[!found,
 (AppendTo[indicoutput,LiteRedPrintTemporary["Found master integral "<>ToString[#]]];AppendTo[misFound,j[nm,##]&@@#])&/@startps
 ];
 noRules=gatherRules[deleteSpecific[{ToRules@smartReduce[LogicalExpand[RulesToCondition[Flatten[noRules,1]]||Or@@badconditions]]}]];
+If[!FreeQ[noRules,_Rational],Abort[]];
 ,tc1,LiteRedPrint[Style["Exceeded time limit ("<>ToString[tctr[[1,2]]]<>") for restricting to "<>ToString[tctr[[1,1]]]<>" symbolic indices. Exiting SolvejSector with $Failed\[Ellipsis]",Red]];throw=True;Throw[$Failed]
 ]
 (*/ noRules=!={}*)];
@@ -2288,14 +2292,16 @@ If[Not@TrueQ@Not@BasisDirectory[nm],Quiet[DiskSave[nm,Save->"Basis"]]];Length@mi
 If[reserved,DeleteFile[disksave<>"/"<>file]];Abort[]]]
 
 
-(*WhenBad*)WhenBad[expr_,indices_,corner_,parameters_]:=Module[{jl=(*Added 27.11.2019*)CollectjList[expr](*/Added 27.11.2019*),dconds,nconds,pars,p},
+(*WhenBad*)WhenBad[expr_,indices_,corner_,parameters_]:=Module[{jl=(*Added 27.11.2019*)CollectjList[expr](*/Added 27.11.2019*),dconds,nconds,pars,p,res},
 pars=Replace[parameters,{}->{p}];(*work around for CoefficientRules[expr,{}] to work*)
-dconds=LogicalExpand[Or@@(And@@Thread[0==(Last/@CoefficientRules[#,pars])(*(*Deleted 05.03.2018*)Flatten[{CoefficientList[#,parameters]}](*/Deleted 05.03.2018*)*)]&/@Union@@((First/@FactorList[#])&/@Denominator/@Last/@jl))];nconds={#2,SmartReduce[Or@@Thread[Pick[Rest[List@@#1],corner,0]>=1],indices,corner]}&@@@jl;If[MemberQ[nconds,{_,True}],Return[True]];nconds=Or@@Flatten@Cases[nconds,{b_,a:Except[False]}:>Cases[Replace[{a},Or->Sequence,{2},Heads->True],x_/;0=!=Expand[Numerator[b]/.ToRules[x]]]];(*LogicalExpand@*)SmartReduce[LogicalExpand[dconds||nconds],indices,corner]];(*/WhenBad*)
+dconds=LogicalExpand[Or@@(And@@Thread[0==(Last/@CoefficientRules[#,pars])(*(*Deleted 05.03.2018*)Flatten[{CoefficientList[#,parameters]}](*/Deleted 05.03.2018*)*)]&/@Union@@((First/@FactorList[#])&/@Denominator/@Last/@jl))];nconds={#2,SmartReduce[Or@@Thread[Pick[Rest[List@@#1],corner,0]>=1],indices,corner]}&@@@jl;If[MemberQ[nconds,{_,True}],Return[True]];nconds=Or@@Flatten@Cases[nconds,{b_,a:Except[False]}:>Cases[Replace[{a},Or->Sequence,{2},Heads->True],x_/;0=!=Expand[Numerator[b]/.ToRules[x]]]];(*LogicalExpand@*)res=SmartReduce[LogicalExpand[dconds||nconds],indices,corner];
+(*Added 23.09.2022*)If[!FreeQ[res,Power[_,Except[_Integer]]],True,res](*/Added 23.09.2022*)(*Had to add this as Reduce sometimes returns square roots*)
+];(*/WhenBad*)
 
 
 (*SmartReduce*)
 SmartReduce[expr_,indices_,corner_]:=Module[{exprl=Replace[{expr},Or->Sequence,{2},Heads->True],exprl1,t,v,l,constr=MapThread[Replace[#1,{1->#2>=1,0->#2<=0}]&,{corner,indices}]},
-exprl1=(t=Replace[{#},And->Sequence,{2},Heads->True];t=And@@(Function[l,cf[LogicalExpand@TimeConstrained[(*\[LeftArrow]added 25.12.2012*)Reduce[#,l[[1,2]],Integers],300,#]&[And@@l[[All,1]]&&(And@@Select[constr,MemberQ[l[[1,2]],First@#]&])],indices,corner]]/@GatherBy[Transpose[{t,FixedPoint[Function[l,Union@@Cases[l,x_/;{}!=Intersection[#,x]]&/@l],Cases[indices,n_/;Not[FreeQ[#,n]]]&/@t]}],Last]))&/@exprl;
+exprl1=(t=Replace[{#},And->Sequence,{2},Heads->True];t=And@@(Function[l,cf[LogicalExpand@TimeConstrained[(*\[LeftArrow]added 25.12.2012*)Reduce[(*Thread[GroebnerBasis[#,indices]==0]*)#,l[[1,2]],Integers],300,#]&[And@@l[[All,1]]&&(And@@Select[constr,MemberQ[l[[1,2]],First@#]&])],indices,corner]]/@GatherBy[Transpose[{t,FixedPoint[Function[l,Union@@Cases[l,x_/;{}!=Intersection[#,x]]&/@l],Cases[indices,n_/;Not[FreeQ[#,n]]]&/@t]}],Last]))&/@exprl;
 Or@@exprl1];
 
 
@@ -2316,16 +2322,22 @@ SolvejSector::nots="The first argument of SolvejSector should be js[\[Ellipsis]]
 SolvejSector[s_,OptionsPattern[]]:=(Message[SolvejSector::nots,s];$Failed)
 
 
+jsort[jjs_List,sector_js]:=Module[{jjs1,om=jsOrder@@sector,bp},
+If[jjs==={},Return[jjs]];bp=Rest[List@@First[jjs]];
+jjs1=Select[jjs,jSector[#]===sector&];
+Join[SortBy[jjs1,(-om . (Rest[List@@#]-bp))&],Complement[jjs,jjs1]]
+]
+
+
 SetAttributes[initdb,HoldFirst]
 initdb[dbase_,sector_:Automatic,vars_:{}]:=Module[{db=Unique["db"]},
 dbase={ToString@db,{}}(*;Evaluate[db]={0\[Rule]0}*)];
 
 
 SetAttributes[finitdb,HoldFirst]
-finitdb[dbase_,jsec_,vars_:{}]:=Module[{dbname,str,jjs0={},om=jsOrder@@jsec},
+finitdb[dbase_,jsec_,vars_:{}]:=Module[{dbname,jlist={}},
 dbname=Fermatica`Private`uniquefile["db"];Close[OpenWrite[dbname]];
-dbase={dbname,vars,om,jjs0}
-(*;fcleandb[dbname,vars]*)
+dbase={dbname,vars,jsec,jlist}
 ];
 
 
@@ -2344,25 +2356,22 @@ dbase[[-1]]={};
 
 
 SetAttributes[submiteqs,HoldRest]
-submiteqs[eqs_,dbase_,sector_:Automatic,startp_:Automatic]:=dbase[[2]]=eqs;
+submiteqs[eqs_,dbase_]:=dbase[[2]]=eqs;
 
 
 SetAttributes[fsubmiteqs,HoldRest];
-fsubmiteqs[eqs_,dbase_,sector_,startp_]:=Module[{dbname,v,vars,om,jjs0,jjs,smat,remap,str},
-{dbname,vars,om,jjs0}=dbase;
+fsubmiteqs[eqs_,dbase_]:=Module[{dbname,v,vars,om,jlist,jnewlist,smat,remap,str,jsec},
+{dbname,vars,jsec,jlist}=dbase;
 str=StringReplace[ReadString[dbname],"&x;"->""];
 If[StringContainsQ[str,"Array eqs["],Print["Found unsolved eqs."];Abort[]];
-jjs=DeleteDuplicates@Join[jjs0,Cases[eqs,_j,All]];
-remap=Select[jjs,jSector[#]===sector&];
-jjs=Join[SortBy[remap,(-om . (Rest[List@@#]-startp))&],Complement[jjs,remap]];
-smat=SparseArray[ArrayRules[CoefficientArrays[eqs,jjs][[2]]]/.MapIndexed[#->v@@#2&,vars],{Length@eqs,Length@jjs}];
-remap=SparseArray[MapIndexed[{1,First[#2]}->Position[jjs,#,{1},1][[1,1]]&,jjs0],{1,Max[1,Length@jjs0]}];
-(*jjs0=jjs;*)
+jnewlist=jsort[DeleteDuplicates@Join[jlist,Cases[eqs,_j,All]],jsec];
+smat=SparseArray[ArrayRules[CoefficientArrays[eqs,jnewlist][[2]]]/.MapIndexed[#->v@@#2&,vars],{Length@eqs,Length@jnewlist}];
+remap=SparseArray[MapIndexed[{1,First[#2]}->Position[jnewlist,#,{1},1][[1,1]]&,jlist],{1,Max[1,Length@jlist]}];
 str=str<>Fermatica`Private`smat2str[remap,"remap"]<>"\n\n\n"<>StringReplace[Fermatica`Private`smat2str[smat,"eqs"],(ToString[v]<>"[")~~(n:DigitCharacter..)~~"]":>"v"<>n];
 OpenWrite[dbname];
 WriteString[dbname,str];
 Close[dbname];
-dbase[[-1]]=jjs;
+dbase[[-1]]=jnewlist;
 ];
 
 
@@ -2381,18 +2390,18 @@ Break[]],{i,Length@eqs}];n];
 
 
 SetAttributes[fsolveeqs,HoldRest];
-fsolveeqs[pat_,dbase_,found_,indic_]:=Module[{dbname,v,vars,om,jjs,str,wanted,rpos},
-{dbname,vars,om,jjs}=dbase;
+fsolveeqs[pat_,dbase_,found_,indic_]:=Module[{dbname,v,vars,jsec,jlist,str,wanted,rpos},
+{dbname,vars,jsec,jlist}=dbase;
 str=StringReplace[ReadString[dbname],"&x;"->""];
 If[StringContainsQ[str,"Array wanted["],Print["Found [wanted] array."];Return[$Failed]];
 If[!StringContainsQ[str,"Array eqs["],Return[0]];
-wanted=SparseArray[Thread[Position[{jjs},pat,{2}]->1],{1,Length@jjs}];
+wanted=SparseArray[Thread[Position[{jlist},pat,{2}]->1],{1,Length@jlist}];
 str=str<>"\n\n\n"<>Fermatica`Private`smat2str[wanted,"wanted"]<>"\n\n\nFetch;";
 Fermatica`FermatSession[str,indic,Which[StringMatchQ[#2,"* eqs solved."],#1+ToExpression[StringDrop[#2,-12]],StringMatchQ[#2,"* debug"],Print[#2];#1,True,#1]&,Out->dbname,DeleteFile->False];
 str=ReadString[dbname];
 rpos=Fermatica`Private`str2scl[str,"rpos"];
 If[rpos>0,
-found={jjs[[#1[[2]]]],#2}&@@@Most[ArrayRules[Fermatica`Private`str2smat[str,"rule",{"v"~~(n:DigitCharacter..):>(ToString[v]<>"[")<>n<>"]"}]]/.MapIndexed[v@@#2->#&,vars]];
+found={jlist[[#1[[2]]]],#2}&@@@Most[ArrayRules[Fermatica`Private`str2smat[str,"rule",{"v"~~(n:DigitCharacter..):>(ToString[v]<>"[")<>n<>"]"}]]/.MapIndexed[v@@#2->#&,vars]];
 found=found[[1,1]]->-(Plus@@Times@@@Rest[found]/found[[1,2]]),
 found=0->0
 ];
@@ -3614,7 +3623,7 @@ If[dir===Automatic,While[DirectoryQ[dir="IBPReduction"<>ToString[++i]],Continue[
 If[DirectoryQ[dir],While[DirectoryQ[dir1=dir<>"/IBPReduction"<>ToString[++i]],Continue[]];dir=dir1]];
 CreateDirectory[dir];(*\:0441\:043e\:0431\:0438\:0440\:0430\:0435\:043c \:0432\:0441\:0435 j, \:043e\:043f\:0440\:0435\:0434\:0435\:043b\:044f\:0435\:043c \:0441\:043b\:043e\:0436\:043d\:0435\:0439\:0448\:0438\:0439 \:0441\:0435\:043a\:0442\:043e\:0440*)
 CheckAbort[
-nr=IBPSelect[expr,dir,jExtRules->OptionValue[jExtRules],jSector->OptionValue[jSector],jRules->OptionValue[jRules]];
+nr=IBPSelect[expr,dir,jExtRules->OptionValue[jExtRules],jSector->OptionValue[jSector],jRules->(Replace[OptionValue[jRules],{None->({}&)}])];
 mis=Get[dir<>"/MIs"];
 LiteRedPrintTemporary["MIs: ",mis];
 jsd=Get[dir<>"/jsDependencies"];
@@ -4090,7 +4099,7 @@ StyleBox[\"xs\", \"TI\"]\),\n  2. \!\(\*
 StyleBox[\"U\", \"TI\"]\)=\!\(\*UnderscriptBox[\(\[Product]\), \(i\)]\)\!\(\*SubscriptBox[
 StyleBox[\"U\", \"TI\"], \(i\)]\).\n  3. \!\(\*
 StyleBox[\"F\", \"TI\"]\)=\!\(\*UnderscriptBox[\(\[Sum]\*SubscriptBox[
-StyleBox[\"F\", \"TI\"], \"i\"]\), \(i\)]\)\!\(\*UnderscriptBox[\(\[Product]\), \(j\.01 \[NotEqual] \.01i\)]\)\!\(\*SubscriptBox[
+StyleBox[\"F\", \"TI\"], \"i\"]\), \(i\)]\)\!\(\*UnderscriptBox[\(\[Product]\), \(j \[NotEqual] i\)]\)\!\(\*SubscriptBox[
 StyleBox[\"U\", \"TI\"], \(i\)]\).";
 
 
@@ -4974,10 +4983,10 @@ jrules=MapAt[#/.(#\[Rule]Pattern[#,Blank[]]&@d)&,#,1]&/@(Flatten[{jRules@@hjsec}
 ];*)
 t1=Length@jlist;
 While[jlist=!={},
-dbg={0,0};
-dbg1=PrintTemporary[Dynamic[dbg],"/",Length[jlist]];
-nrs=(dbg={#,Last@dbg+1};Replace[#,jrules])&/@jlist;
-NotebookDelete[dbg1];
+(*dbg={0,0};*)
+(*dbg1=PrintTemporary[Dynamic[dbg],"/",Length[jlist]];*)
+nrs=(*(dbg={#,Last@dbg+1};)*)Replace[#,jrules]&/@jlist;
+(*NotebookDelete[dbg1];*)
 rs0=Join[jlist,rs0];rs=Join[nrs,rs];
 nr+=Length@jlist;
 jlist={#,jSector@#}&/@DeleteDuplicates@Cases[{nrs}/.Dispatch[Thread[rs0->0]],_j,\[Infinity]];
@@ -5168,7 +5177,7 @@ FeynGraphPlot::usage="FeynGraphPlot[jGraph[j[...]], \!\(\*
 StyleBox[\"options\",\nFontSlant->\"Italic\"]\)] draws a graph.\nAccepted graph format is a list with each element being {e,{s,n,l}}, where e is an edge (like in 1\[Rule]2), s is the line style, n in the number of dots, l is a label. Many options are common with GraphPlot. Altered/new options are EdgeLabeling,VertexStyle, VertexSize, LabelStyle, EdgeStyle, EdgeLabeling.\nTo understand their format, check their default values with Options[FeynGraphPlot, {VertexStyle, VertexSize, LabelStyle, EdgeStyle, EdgeLabeling}].";
 
 
-Options[FeynGraphPlot]={EdgeLabeling->False,EdgeStyle->{_->Black},VertexStyle->{_->{Black,Disk[]}},VertexSize->{_->0.01},Background->None,Frame->False,FrameLabel->None,FrameStyle->{},LabelStyle->{},ImageMargins->0,ImagePadding->All,ImageSize->Automatic,ImageSizeRaw->Automatic,LabelStyle->{},Method->Automatic,MultiedgeStyle->Automatic,PackingMethod->Automatic,PlotLabel->None,PlotStyle->Automatic};
+Options[FeynGraphPlot]={VertexCoordinateRules->Automatic,EdgeLabeling->False,EdgeStyle->{_->Black},VertexStyle->{_->{Black,Disk[]}},VertexSize->{_->0.01},Background->None,Frame->False,FrameLabel->None,FrameStyle->{},LabelStyle->{},ImageMargins->0,ImagePadding->All,ImageSize->Automatic,ImageSizeRaw->Automatic,LabelStyle->{},Method->Automatic,MultiedgeStyle->Automatic,PackingMethod->Automatic,PlotLabel->None,PlotStyle->Automatic};
 
 
 FeynGraphPlot[graph_,OptionsPattern[]]:=Module[{verts,erule,esf,estyle=OptionValue[EdgeStyle],vstyle=OptionValue[VertexStyle],vsize=OptionValue[VertexSize],sd,ce,opts,gr=MapAt[Sort,graph,{All,1}],es,m11=$VersionNumber<12},
@@ -5178,15 +5187,16 @@ verts=Union@@(List@@@gr[[All,1]]);
 If[m11,
 (*Mma <12*)
 GraphPlot[gr,opts,EdgeRenderingFunction->(Replace[{#2,#3},erule][#1]&),DirectedEdges->False,
-VertexRenderingFunction->None],
+VertexRenderingFunction->None,VertexCoordinateRules->OptionValue[VertexCoordinateRules]],
 (*Mma >=12*)
-Function[{e,esfl},ReleaseHold[Hold@@{sd[esf[List@@e],Fold[ce[sd[esf[List@@e],#1],#2]&,esfl]]}/.{sd->SetDelayed,ce->CompoundExpression}]]@@@Normal[GroupBy[gr,First->(Replace[#,erule]&)]];GraphPlot[gr[[All,1]],EdgeShapeFunction->((esf[Sort[List@@#2]][#1])&),opts,VertexShape->(#->Graphics[Replace[#,vstyle]]&/@verts),VertexSize->(#->{"Scaled",Replace[#,vsize]}&/@verts),DirectedEdges->False]]
+Function[{e,esfl},ReleaseHold[Hold@@{sd[esf[List@@e],Fold[ce[sd[esf[List@@e],#1],#2]&,esfl]]}/.{sd->SetDelayed,ce->CompoundExpression}]]@@@Normal[GroupBy[gr,First->(Replace[#,erule]&)]];GraphPlot[gr[[All,1]],EdgeShapeFunction->((esf[Sort[List@@#2]][#1])&),opts,VertexShape->(#->Graphics[Replace[#,vstyle]]&/@verts),VertexSize->(#->{"Scaled",Replace[#,vsize]}&/@verts),DirectedEdges->False,VertexCoordinateRules->OptionValue[VertexCoordinateRules]]]
 ];
 
 
 jGraphPlot::usage="jGraphPlot[j[...], \!\(\*
 StyleBox[\"options\",\nFontSlant->\"Italic\"]\)] is a shortcut for FeynGraphPlot[jGraph[j[...]], \!\(\*
 StyleBox[\"options\",\nFontSlant->\"Italic\"]\)]";
+Options[jGraphPlot]:=Options[FeynGraphPlot]
 
 
 jGraphPlot[jj_,opts:OptionsPattern[]]:=FeynGraphPlot[jGraph[jj,Label->{Style,Dot,Number}],opts];
