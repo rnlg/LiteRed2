@@ -63,8 +63,9 @@ LiteRed`Private`WarnSet[LiteRed`Private`a_,LiteRed`Private`b_]:=(LiteRed`Private
 $ActiveBases={};
 
 
-LiteRed`Private`WarnSet[CompleteMomentaFlow,(Print["CompleteMomentaFlow is outdated, use GraphToDs instead."];#)&];(*outdated*)
+CompleteMomentaFlow;
 GraphToDs;(*Does exactly what it says*)
+GraphToAmplitude;
 
 
 PowerShifts;(*additions to power of denominators*)
@@ -81,6 +82,7 @@ Relations;
 GeneratePFGB;
 PFGB;
 PFReduce;
+PFjSubsectors;
 
 
 LiteRed`Private`WarnSet[NewBasis,NewDsBasis];
@@ -248,6 +250,7 @@ DiskRecover;
 
 IBPReduce;
 IBPSelect;
+FermatIBPReduce;
 (*    DWeight;*)
 
 
@@ -307,6 +310,9 @@ todo[s_String]:=AppendTo[todolist,s];
 
 
 debug::msg="Debug: `1`";
+
+
+append[vectors:{__List},vectors1:{__List}]:=Module[{r,basis=vectors},r=MatrixRank[basis];Scan[If[MatrixRank[AppendTo[basis,#1]]>r,r++,basis=Most[basis]]&,vectors1];Drop[basis,Length[vectors]]]
 
 
 If[NameQ["System`Adjugate"],
@@ -471,11 +477,6 @@ StyleBox[\"var\", \"TI\"]\),\[Ellipsis]] was executed.";
 DsSetQ[_]=False;
 
 
-Relations::usage="Relations[\!\(\*
-StyleBox[\"dsset\", \"TI\"]\)] gives a set of relations between the denominators of the \!\(\*
-StyleBox[\"set\", \"TI\"]\).";
-
-
 PowerShifts[nm_?DsSetQ]:=PowerShifts[nm]=ConstantArray[0,Length@Ds[nm]]
 
 
@@ -483,7 +484,13 @@ Options[NewDsSet]={
 Directory->False,
 Append->False,
 PowerShifts->None,
-	CutDs->Automatic,
+(*Added 05.05.2023*)
+Relations->False,
+GeneratePFGB->False,
+AnalyzeSectors->False,
+FindExtSymmetries->False,
+(*/Added 05.05.2023*)
+CutDs->Automatic,
 SectorsPattern->{___},
 (*Added 21.12.2020*)jsOrder->{"np","cp","-ds","-ns"}(*/Added 21.12.2020*)
 };
@@ -494,9 +501,9 @@ NewDsSet::ovrw="Warning: definitions for `1` has been found. They may interfere 
 NewDsSet[nm_Symbol, ds : {(_?VecQ | _?NumQ) ..}, lms : {__?VecVarQ}, 
   OptionsPattern[]] := Module[{
 d=MetricTensor[],
- dens, ddens,m,matr,
+ dens, ddens,vdens,m,
 dim, ems, sps, toj,ns,l},
-If[Length@UpValues[nm]>0,Message[NewDsSet::ovrw,nm]];
+If[Length@UpValues[nm]>0,Message[NewDsSet::ovrw,nm];Clear[nm]];
 SectorsPattern[nm]^=OptionValue[SectorsPattern];
 (*Normalize denominators*)
 dens = Replace[ds,x_?VecQ :> sp[x, x], {1}];
@@ -504,23 +511,25 @@ ems = Complement[Union@Cases[dens, _?VecVarQ, Infinity], lms];
 sps = Union @@ Outer[sp, lms, Join[lms, ems]];
 ddens=Expand@LFDistribute[dens,sp];
 (*add numerators*)
-m=RowReduce@Outer[Coefficient,ddens, sps];
+m=Outer[Coefficient,ddens, sps];
 ns=Length@sps-MatrixRank[m];
 If[ns>0,
-Quiet[ns=Complement[sps,Solve[m . sps==0,sps][[1,All,1]]]];
+(*Quiet[ns=Complement[sps,Solve[m.sps==0,sps]\[LeftDoubleBracket]1,All,1\[RightDoubleBracket]]];*)
+ns=append[m,IdentityMatrix[Length[sps]]] . sps;
 If[TrueQ[!OptionValue[Append]],Message[NewDsSet::nums,ns,Length@ns]; Abort[]];
 dens=Join[dens,ns];ddens=Join[ddens,LFDistribute[ns]];
 LiteRedPrint["Irreducible numerator(s) appended: ",Sequence@@Riffle[ns,","],".\nUsing {___,"<>StringTake[ToString[0&/@ns],{2,-1}]<>" as a pattern for AnalyzeSectors."];
 SectorsPattern[nm]^={___,Sequence@@(0&/@ns)};
 ];(*/add numerators*)
 dim=Length@dens;
-matr=Transpose[Outer[Coefficient,ddens, sps]];
-(*linear relations*)m=NullSpace[matr];
+(*(*Deleted 05.05.2023*)(*linear relations*)
+vdens=Outer[Coefficient,ddens, sps];
+m=NullSpace[Transpose@vdens];
 ns=$NamingFunction[dim];
-If[m=!={},m=Numerator@Factor@LFDistribute[m . (ns-ddens)]];
+If[m=!={},m=Numerator@Factor@LFDistribute[m.(ns-ddens)]];
 nm/:Relations[nm]=Function[#1,#2]&[ns,m];
-LiteRedPrint[StringJoin@@Riffle[Flatten[{"Found relations",ToString[#,InputForm]&/@Thread[m==0]}],"\n    "]];
-(*/linear relations*)
+LiteRedPrint[StringJoin@@Riffle[Flatten[{"Found relations",ToString[#,InputForm]&/@Thread[m\[Equal]0]}],"\n    "]];
+(*/linear relations*)(*/Deleted 05.05.2023*)*)
 Toj[nm]^=Thread[sps-> Most[ComplexExpand@PseudoInverse[Append[Transpose[Append[Transpose[Outer[Coefficient,ddens, sps]],ddens/.Thread[sps->0]]],PadLeft[{1},Length@sps+1]]]] . (j[nm,##]&@@@Append[-IdentityMatrix[dim],ConstantArray[0,dim]])];
 nm /: Ds[nm] = dens;
 nm /: NDs[nm] = dim;
@@ -534,7 +543,7 @@ SectorsPattern[nm]^=SectorsPattern[nm]/. (1)->(_);
 l=DeleteCases[{Sort[{##}],Replace[sp[##],sp->List,{1},Heads->True]}&@@@Replace[Subsets[ems,{1,2}],{x_}:> {x,x},{1}],{l_,l_}];
 Definitions[nm]^=Flatten[{If[AtomQ[MetricTensor[]],Hold[MetricTensor[]===#,SetDim[#]]&[MetricTensor[]],Unevaluated[Sequence[]]],
 Hold[VecQ[#],Declare[#,Vector]]&/@Join[lms,ems],
-Hold[TypeOf[#]===#2,Declare[#,#2]]&@@@({#,TypeOf[#]}&/@Select[Variables[l],AtomQ]),
+Hold[ExpresionType[#]===#2,Declare[#,#2]]&@@@({#,ExpresionType[#]}&/@Select[Variables[l],AtomQ]),
 Replace[l,{{x_,y_},z_}:>Hold[sp[x,y]===z,sp[x,y]=z],{1}]}];
 (*/Definitions 21.11.13*)
 BasisDirectory[nm]=OptionValue[Directory];
@@ -552,10 +561,39 @@ SyntaxInformation[nm]={"ArgumentsPattern"->(ConstantArray[_,dim+1])};
 (*/default syntax*)
 (*PowerShifts[nm]^=ConstantArray[0,dim];*)
 DsSetQ[nm]^=True;
+(*Added 05.05.2023*)
+If[OptionValue[Relations],LiteRedPrint[Style["Obtaining relations\[Ellipsis]",Bold]];Relations[nm]];
+If[OptionValue[GeneratePFGB],LiteRedPrint[Style["Generating Groebner basis for partial fractioning\[Ellipsis]",Bold]];
+GeneratePFGB[nm]];
+If[TrueQ[Not@TrueQ[Not@OptionValue[FindExtSymmetries]]||OptionValue[AnalyzeSectors]],
+LiteRedPrint[Style["Analyzing sectors\[Ellipsis]",Bold]];AnalyzeSectors[nm]];
+If[Not@TrueQ[Not@OptionValue[FindExtSymmetries]],
+LiteRedPrint[Style["Finding external symmetries\[Ellipsis]",Bold]];
+FindExtSymmetries[nm,##]&@@Replace[OptionValue[FindExtSymmetries],True->$ActiveBases];
+];
+(*/Added 05.05.2023*)
 LiteRedPrint["Valid set.\n    Ds[" <> # <>"] \[LongDash] denominators,\n    SPs[" <> # <>"] \[LongDash] scalar products involving loop momenta,\n    LMs[" <> # <>"] \[LongDash] loop momenta,\n    EMs[" <> # <>"] \[LongDash] external momenta,\n    Relations[" <> # <>"] \[LongDash] relations between denominators."(*<>",\n    PowerShifts[" <> # <>"] \[LongDash] vector of constant shifts in powers."*)<>(If[Not@TrueQ@Not@BasisDirectory[nm],"\nThe definitions of the set will be saved in "<>BasisDirectory[nm],""])] &@ToString[nm];
 If[Not@TrueQ@Not@BasisDirectory[nm],DiskSave[nm,Save->"Basis"]];
 nm(*return basis*)
 ];
+
+
+Relations::usage="Relations[\!\(\*
+StyleBox[\"dsset\", \"TI\"]\)] gives a set of relations between the denominators of the \!\(\*
+StyleBox[\"set\", \"TI\"]\).";
+
+
+Relations[nm_?DsSetQ]:=Relations[nm]^=Module[
+{dds,vds,ker,ns,nds,rk,range,inds},
+dds=LFDistribute[Ds[nm],sp];
+vds=Outer[Coefficient,dds, SPs[nm]];
+ker=NullSpace[Transpose@vds];
+ns=Array[ToExpression["d"<>ToString[#1]]&,NDs[nm]];
+If[ker=!={},ker=Numerator@Factor[ker . (ns-dds)]];
+LiteRedPrint[StringJoin@@Riffle[Flatten[{"Found relations",ToString[#,InputForm]&/@Thread[ker==0]}],"\n    "]];
+Function[#1,#2]&[ns,ker]
+];
+
 
 
 NewDsBases::usage="NewDsBases[\!\(\*
@@ -581,6 +619,22 @@ SetToBasesRule[nm]^=MapThread[((j[nm]@@Replace[MapAt[p[#,_]&,ns,List/@#2],Except
 LiteRedPrint["Defined bases "<>ToString[nbs]<>".\n    SetToBasesRule["<>ToString[nm]<>"] is the mapping rule."];
 nbs
 ]
+
+
+PFjSubsectors::usage="PFjSubsectors[js[\!\(\*
+StyleBox[\"set\", \"TI\"]\),1,0,...]] returns a list of largest subsectors that contain linearly independent denominators (i.e., need not be \"PFReduce\"-ed).";
+
+
+PFjSubsectors[jjs:js[nm_,(0|1)...]]:=Module[{ds=Ds[jjs],jjsz,vds,nds,rk,range,inds},
+nds=Length[ds];jjsz=Replace[jjs,1->0,{1}];range=Range[nds];
+inds=Flatten[Position[jjs,1,{1}]];
+vds=Outer[Coefficient,LFDistribute[ds,sp],SPs[nm]];(*list of ds as vectors*)
+rk=MatrixRank[vds];
+ReplacePart[jjsz,Thread[inds[[#]]->1]]&/@Select[Subsets[range,{rk}],MatrixRank[vds[[#]]]==rk&]
+]
+
+
+PFjSubsectors[jjslist_List]:=Union@@(PFjSubsectors/@jjslist)
 
 
 GeneratePFGB::usage="GeneratePFGB[\!\(\*
@@ -667,17 +721,18 @@ StyleBox[\"basis\", \"TI\"]\)].";
 
 
 Options[NewDsBasis]={
-	GenerateIBP->False,
-	SectorsPattern->Automatic,
-	CutDs->Automatic,
-	AnalyzeSectors->False,
-	FindSymmetries->False,
-	FindExtSymmetries->False,
-	Directory->False,
-	Append->False,
-	PowerShifts->None,
-	SolvejSector->False,
-	jsOrder->{"np","cp","-ds","-ns"}
+GenerateIBP->False,
+SectorsPattern->Automatic,
+CutDs->Automatic,
+AnalyzeSectors->False,
+FindSymmetries->False,
+FindExtSymmetries->False,
+Directory->False,
+Append->False,
+PowerShifts->None,
+EMs->Automatic,(*One might want to have more external momenta than it appears*)
+SolvejSector->False,
+jsOrder->{"np","cp","-ds","-ns"}
 };
 
 
@@ -699,11 +754,13 @@ NewDsBasis::ps="PowerShifts: All nonzero power shifts should preceed zero ones. 
 NewDsBasis::nums="The set of denominators is not a basis.\nAdd irreducible numerator(s) `1`, or try your own set of `2` numerator(s).\nAborting...";
 NewDsBasis::ems="External momenta `1` have zero Gram determinant. Dinv might work incorrectly.";
 NewDsBasis::ovrw="Warning: definitions for `1` has been found. They may interfere with the upcoming definitions. Clearing definitions\[Ellipsis]";
+
+
 NewDsBasis[nm_Symbol, ds : {(_?VecQ | _?NumQ) ..}, lms : {__?VecVarQ}, 
   OptionsPattern[]] := Module[{
 d=MetricTensor[],
- dens, ddens,pars,
-dim, ems, sps, toj,ns,nums,l,
+m, dens, ddens,pars,
+dim, ems, sps, toj,ns,(*nums,*)l,
 gi,as,fs,fes,ss,save,ps},
 {gi,as,fs,fes,ss,save,ps}={OptionValue[GenerateIBP],OptionValue[AnalyzeSectors],OptionValue[FindSymmetries],OptionValue[FindExtSymmetries],OptionValue[SolvejSector],OptionValue[Directory],OptionValue[PowerShifts]};
 If[Length@UpValues[nm]>0,Message[NewDsBasis::ovrw,nm];Clear[nm]];
@@ -712,22 +769,26 @@ SectorsPattern[nm]^=Replace[as,True|False->OptionValue[SectorsPattern]];
 as=Not[TrueQ[Not[as]]];
 (*Normalize denominators*)
 dens = Replace[ds,x_?VecQ :> sp[x, x], {1}];
-ems = Complement[Union@Cases[dens, _?VecVarQ, Infinity], lms];
+ems =Replace[OptionValue[EMs],Automatic:> Complement[Union@Cases[dens, _?VecVarQ, Infinity], lms]];
 (*Added 03.08.2020*)
 If[Factor@GramDeterminant[]===0,Message[NewDsBasis::ems,ems]];
 (*/Added 03.08.2020*)
  sps = Union @@ Outer[sp, lms, Join[lms, ems]];
 ddens=Expand@LFDistribute[dens,sp];
-dim=Length@dens;ns=Length@sps-dim;
+dim=Length@dens;(*ns=Length@sps-dim;*)
 (*add numerators*)
-If[ns<0,Message[NewDsBasis::notb]; Abort[]];
-If[MatrixRank[Coefficient[ddens, #] & /@ sps]<dim,Message[NewDsBasis::notb]; Abort[]];
+(*If[ns<0,Message[NewDsBasis::notb]; Abort[]];*)
+m=Outer[Coefficient,ddens, sps];
+ns=MatrixRank[m];
+If[ns<dim,Message[NewDsBasis::notb]; Abort[]];
+ns=Length@sps-ns;
 If[ns>0,
-Quiet[nums=Complement[sps,Solve[ddens==0,sps][[1,All,1]]]];
-If[TrueQ[!OptionValue[Append]],Message[NewDsBasis::nums,nums,Length@nums]; Abort[]];
-dens=Join[dens,nums];ddens=Join[ddens,nums];
+(*Quiet[nums=Complement[sps,Solve[ddens==0,sps]\[LeftDoubleBracket]1,All,1\[RightDoubleBracket]]];*)
+ns=append[m,IdentityMatrix[Length[sps]]] . sps;
+If[TrueQ[!OptionValue[Append]],Message[NewDsBasis::nums,ns,Length@ns]; Abort[]];
+dens=Join[dens,ns];ddens=Join[ddens,ns];
 dim=Length@sps;
-LiteRedPrint["Irreducible numerator(s) appended: ",Sequence@@Riffle[nums,","],".\nUsing {___, "<>StringTake[ToString[ConstantArray[0,ns]],{2,-2}]<>"} as a pattern for AnalyzeSectors."];
+LiteRedPrint["Irreducible numerator(s) appended: ",Sequence@@Riffle[ns,","],".\nUsing {___, "<>StringTake[ToString[ConstantArray[0,ns]],{2,-2}]<>"} as a pattern for AnalyzeSectors."];
 ];(*/add numerators*)
 ps=PadRight[ps/.{None->ConstantArray[0,dim]},dim];
 pars=Variables[{Cases[Variables[ddens],_?(FreeQ[#,Alternatives@@lms]&)], Outer[sp, ems, ems],{d},ps}];
@@ -758,7 +819,7 @@ DeleteCases[DeleteDuplicates[Collectj[j[nm,##]-(j[nm,##]/.jSymmetries@@jsc)]],0]
 l=DeleteCases[{Sort[{##}],Replace[sp[##],sp->List,{1},Heads->True]}&@@@Replace[Subsets[ems,{1,2}],{x_}:> {x,x},{1}],{l_,l_}];
 Definitions[nm]^=Flatten[{If[AtomQ[MetricTensor[]],Hold[MetricTensor[]===#,SetDim[#]]&[MetricTensor[]],Unevaluated[Sequence[]]],
 Hold[VecQ[#],Declare[#,Vector]]&/@Join[lms,ems],
-Hold[TypeOf[#]===#2,Declare[#,#2]]&@@@({#,TypeOf[#]}&/@Select[Variables[l],AtomQ]),
+Hold[ExpresionType[#]===#2,Declare[#,#2]]&@@@({#,ExpresionType[#]}&/@Select[Variables[l],AtomQ]),
 Replace[l,{{x_,y_},z_}:>Hold[sp[x,y]===z,sp[x,y]=z],{1}]}];
 (*/Definitions 21.11.13*)
 PowerShifts[nm]^=ps;
@@ -867,21 +928,47 @@ checkdefs[nm_]:=If[ValueQ[Definitions[nm]],If[!ReleaseHold[#1],{#1,#2},Unevaluat
 Message[ExecuteDefinitions::nodefs];{}]
 
 
-GraphToDs::usage="GraphToDs[graph,{l1,l2,\[Ellipsis]},dfun] constructs list of denominators from graph.\ngraph is a list of edges given in the form {n1->n2,label,[momemtum]}, where n1 and n2 are the numbers of vertices. Nonpositive n1 or n2 corresponds to external legs.\nIf dfun is omitted, the function (sp[#2]-#1&) is applied.\nExample:\n    GraphToDs[{{1->2,mm,l1},{1->3,mm},{2->3,0},{2->4,mm,l2},{3->4,mm},{0->1,q,q},{4->0,q,q}},{l1,l2},dfun] \[DoubleLongRightArrow]\n    {dfun[mm,l1],dfun[mm,-l1+q],dfun[0,l1-l2],dfun[mm,l2],dfun[mm,-l2+q]}";
-
-
-GraphToDs[graph_,LMs_,Df_:(sp[#2]-#1&)]:=Module[
-{vs,moms={},moms1,ngraph,eqs,sol,lms=LMs},
-lms=Select[lms,FreeQ[graph,#]&];
-(*get vertices*)
-ngraph=Replace[#,{{e_,l_}:>((AppendTo[moms,#];{e,l,#})&[Unique[]]),{e_}:>((AppendTo[moms,#];{e,"",#})&[Unique[]])}]&/@MapAt[Rule@@#&,graph,{All,1}];
-eqs=Reap[Replace[ngraph,{a_->b_,_,m_}:>(Sow[-m,Max[0,a]];Sow[m,Max[0,b]]),{1}],_,Plus@@#2&][[-1]];
+CompleteMomentaFlow::err="Impossible to complete momenta flow.";
+CompleteMomentaFlow::few="Too few labels for loop momenta. Using labels `1`.";
+CompleteMomentaFlow::many="Too many labels for loop momenta. Using labels `1` only.";
+CompleteMomentaFlow::usage="CompleteMomentaFlow[graph,{l1,l2,\[Ellipsis]}] uses first Kirchhoff's laws to label graph's edges with momenta..\ngraph is a list of edges, each given in the form {n1->n2,[type],[momemtum]} (square brackets denote optional parameters), where n1 and n2 are the vertices. Nonpositive n1 or n2 corresponds to external legs. The result is the same graph, where each edge is now of the form {n1->n2,type,momemtum}. Where type was omitted, it is taken from OptionValue[DefaultStyle].\n.\nExample:\n    CompleteMomentaFlow[{{1->2,mm,l1},{1->3,mm},{2->3,0},{2->4,mm,l2},{3->4,mm},{0->1,q,q},{4->0,q,q}},{l1,l2}] \[DoubleLongRightArrow]\n    {{1->2,mm,l1},{1->3,mm,-l1+q},{2->3,0,l1-l2},{2->4,mm,l2},{3->4,mm,-l2+q},{0->1,q,q},{4->0,q,q}}";
+Options[CompleteMomentaFlow]={DefaultStyle->0};
+CompleteMomentaFlow[graph_,lms1_List:{},OptionsPattern[]]:=Module[
+{vs,moms={},nl,moms1,ngraph,eqs,sol,lms},
+ngraph=Replace[graph,{{e_,s_}:>((AppendTo[moms,#];{e,s,#})&[Unique["l"]]),{e_}:>((AppendTo[moms,#];{e,OptionValue[DefaultStyle],#})&[Unique["l"]])},{1}];
+lms=Select[lms1,FreeQ[Last/@graph,#]&];
+eqs=Reap[Replace[ngraph,{h_[a_,b_],_,m_}:>(Sow[-m,Max[0,a]];Sow[m,Max[0,b]]),{1}],_,Plus@@#2&][[-1]];
 Quiet[sol=Solve[eqs==0,moms]];
-If[sol=={},Return[$Failed]];
+If[sol=={},Message[CompleteMomentaFlow::err];Return[$Failed]];
 sol=First@sol;
 moms1=Complement[moms,First/@sol];
-ngraph=Df[##2]&@@@DeleteCases[ngraph/.sol/.Thread[moms1->lms],{(_?NonPositive->_)|(_->_?NonPositive),__}]
+nl=Replace[{Length[lms],Length[moms1]},{{a_,b_}/;a<b:>(Message[CompleteMomentaFlow::few,Join[Complement[lms1,lms],Take[lms,a],Drop[moms1,a]]];a),{a_,b_}/;a>b:>(Message[CompleteMomentaFlow::many,Join[Complement[lms1,lms],Take[lms,b]]];b),{a_,a_}:>a}];
+ngraph=ngraph/.sol/.Thread[moms1[[;;nl]]->lms[[;;nl]]];
+Return[ngraph]
 ]
+
+
+GraphToDs::usage="GraphToDs[graph,{l1,l2,\[Ellipsis]},dfun] constructs list of denominators from graph.\ngraph is a list of edges given in the form {n1->n2,type,[momemtum]}, where n1 and n2 are the numbers of vertices. Nonpositive n1 or n2 corresponds to external legs.\nIf dfun is omitted, the function (sp[#2]-#1&) is applied.\nExample:\n    GraphToDs[{{1->2,mm,l1},{1->3,mm},{2->3,0},{2->4,mm,l2},{3->4,mm},{0->1,q,q},{4->0,q,q}},{l1,l2},dfun] \[DoubleLongRightArrow]\n    {dfun[mm,l1],dfun[mm,-l1+q],dfun[0,l1-l2],dfun[mm,l2],dfun[mm,-l2+q]}";
+
+
+Options[GraphToDs]={DefaultStyle->0};
+GraphToDs[graph_,lms_List,Df_:(sp[#2]-#1&),OptionsPattern[]]:=Module[
+{ngraph},
+ngraph=CompleteMomentaFlow[graph,lms,DefaultStyle->OptionValue[DefaultStyle]];
+Df[##2]&@@@DeleteCases[ngraph,{(_?NonPositive->_)|(_->_?NonPositive),__}]
+]
+
+
+GraphToAmplitude::usage="GraphToAmplitude[graph,{l1,l2,\[Ellipsis]},efun,vfun] constructs the amplitude from graph.\ngraph is a list of edges given in the form {n1->n2,type,[momemtum]}, where n1 and n2 are the numbers of vertices. Nonpositive n1 or n2 corresponds to external legs.\nDefault for efun and vfun are Line and Point, respectively.\nExample:\n    GraphToAmplitude[{{1->2,mm,l1},{1->3,mm},{2->3,0},{2->4,mm,l2},{3->4,mm},{0->1,q,q},{4->0,q,q}},{l1,l2},dfun] \[DoubleLongRightArrow]\n    Line[0->1,q,q] Line[1->2,mm,l1] Line[1->3,mm,-l1+q] Line[2->3,0,l1-l2] Line[2->4,mm,l2] Line[3->4,mm,-l2+q] Line[4->0,q,q] Point[0] Point[1] Point[2] Point[3] Point[4]"
+
+
+Options[GraphToAmplitude]={DefaultStyle->0};
+GraphToAmplitude[graph_,lms1_,ef_:Line,vf_:Point]:=Module[
+{vs,es=First/@graph,moms={},moms1,ngraph,eqs,sol,lms=LMs},
+vs=Union@@(List@@@es);
+ngraph=CompleteMomentaFlow[graph,lms1];
+Times@@(vf/@vs) Times@@ef@@@ngraph
+];
 
 
 DiskSave::usage="DiskSave[\!\(\*
@@ -1471,6 +1558,9 @@ res=DeleteDuplicates[(#/.ExtSectorsMappings[nm]/.SectorsMappings[nm])&/@res]
 ];
 res
 ]
+
+
+jSubsectors[jslist_List,opts:OptionsPattern[]]:=Union@@(jSubsectors[#,opts]&/@jslist);
 
 
 SectorHierarchy::usage="SectorHierarchy[{js[\!\(\*
@@ -2752,7 +2842,7 @@ Options[AnalyzeSectors]={CutDs->Automatic,FeynParUF->True};
 AnalyzeSectors[nm_,opts:OptionsPattern[]]:=AnalyzeSectors[nm,SectorsPattern[nm],opts];
 AnalyzeSectors[nm_,patt_,OptionsPattern[]]:=Module[{nds=Length@Ds@nm,nloops=Length@LMs@nm,nsects,nsects1,sectors,zsectors,nzsectors={},ssectors={},bsectors={},dbase,s1,st,cds,ps,chzf,str,u,g,x,xs},
 CurrentState[nm,AnalyzeSectors]=False;
-If[!CurrentState[nm,GenerateIBP],Message[NewDsBasis::notb];Return[$Failed]];
+(*(*Deleted 05.05.2023*)If[!CurrentState[nm,GenerateIBP],Message[AnalyzeSectors::noibp];Return[$Failed]];(*/Deleted 05.05.2023*)*)
 cds=OptionValue[CutDs]/.{None->ConstantArray[0,nds],Automatic:>CutDs[nm]};
 ps=Replace[PowerShifts[nm],{Except[0]->1},{1}];
 If[OptionValue[FeynParUF],
@@ -2766,7 +2856,6 @@ chzf=((dbase={};Solvej[#,dbase,CheckZeroFunction->Factor1,SimplifyFunction->Fact
 Collectj[j[nm,##]&@@#//.dbase,Factor1])===0)&;
 str="Solving IBPs in the corner points..."
 ];
-nloops=Length@LMs@nm;
 sectors=Cases[(IntegerDigits[#1,2,nds]&)/@Range[0,2^nds-1],patt];
 nsects=Length@sectors;
 LiteRedMonitor[(*Modified 02.07.2019*)(*st=(Plus@@BitOr[ps,#]<nloops)&/@sectors;
@@ -3254,7 +3343,7 @@ FindExtSymmetries[b1_Symbol,b2_Symbol,bs__Symbol,opts:OptionsPattern[]]:=Total[F
 (*FindExtSymmetries[bs:(_,_,__),opts:OptionsPattern[]]:=FindExtSymmetries[#1,#2,opts]&@@@Reverse[Subsets[{bs},{2}]];*)
 FindExtSymmetries[b1_Symbol,b2_Symbol,OptionsPattern[]]:=Module[
 {nzs1,us2,l,i,k,pt,
-xs,x,fp,pnf,t,jsm,
+xs1,xs,x,fp,pnf,t,jsm,
 dmatr,matr,cs,
 lms1=LMs[b1],
 lms2=LMs[b2],
@@ -3270,6 +3359,7 @@ inds,ems,empd={}
 If[OrderedQ[{b1,b2}],Message[FindExtSymmetries::basisorder]];
 pt=LiteRedPrintTemporary["Forming signatures for unique sectors..."];
 xs=Array[x,{Length@Ds[b2]}];
+xs1=Array[x,{Length@Ds[b1]}];
 fp=Plus@@Most@FeynParUF[b2,NamingFunction->(xs&),Function->False];
 us2=UniqueSectors[b2];l=Length@us2;
 Assert[Head[us2]===List];
@@ -3283,10 +3373,19 @@ TableForm[{"Forming signatures for unique sectors",ProgressIndicator[i,{0,l}],js
 (* sgn2 \[LongDash] \:0441\:043f\:0438\:0441\:043e\:043a \:0441 \:044d\:043b\:0435\:043c\:0435\:043d\:0442\:0430\:043c\:0438 {js[\[Ellipsis]],signature_List,inds_List} *)
 (*\:0414\:043b\:044f \:043a\:0430\:0436\:0434\:043e\:0433\:043e \:043d\:0435\:043d\:0443\:043b\:0435\:0432\:043e\:0433\:043e \:0441\:0435\:043a\:0442\:043e\:0440\:0430 \:043f\:0435\:0440\:0432\:043e\:0433\:043e \:0431\:0430\:0437\:0438\:0441\:0430 \:0438\:0449\:0435\:043c \:043f\:043e\:0434\:0445\:043e\:0434\:044f\:0449\:0438\:0439 \:0441\:0435\:043a\:0442\:043e\:0440 \:0432\:0442\:043e\:0440\:043e\:0433\:043e, \:0438 \:0435\:0441\:043b\:0438 \:043e\:043d \:043d\:0430\:0439\:0434\:0435\:043d, \:0438\:0449\:0435\:043c \:043c\:044d\:043f\:043f\:0438\:043d\:0433*)
 pt=LiteRedPrintTemporary["Searching for mappings..."];
-fp=Plus@@Most@FeynParUF[b1,NamingFunction->(xs&),Function->False];
-If[!ValueQ[ExtUniqueSectors[b1]],ExtUniqueSectors[b1]^=NonZeroSectors[b1]];
+fp=Plus@@Most@FeynParUF[b1,NamingFunction->(xs1&),Function->False];
+If[!ValueQ[ExtUniqueSectors[b1]],
+(*Modified 05.05.2023*)
+If[DsSetQ[b1],
+(*we need to define highest sectors which do not contain linear dependent denominators*)
+ExtUniqueSectors[b1]^=Intersection[jSubsectors[PFjSubsectors[BiggestSectors[b1]],MappedSectors->False],NonZeroSectors[b1]]
+,
+ExtUniqueSectors[b1]^=NonZeroSectors[b1]
+]
+(*/Modified 05.05.2023*)
+];
 nzs1=ExtUniqueSectors[b1];l=Length@nzs1;
-If[Head[nzs1]===NonZeroSectors,Message[FindExtSymmetries::nosectors,"FindSymmetries",b1];Abort[]];
+If[Head[nzs1]=!=List,Message[FindExtSymmetries::nosectors,"FindSymmetries",b1];Abort[]];
 (*\:043a\:043e\:043d\:0441\:0442\:0440\:0443\:0438\:0440\:0443\:0435\:043c \:043c\:0430\:0442\:0440\:0438\:0446\:0443 \:0437\:0430\:043c\:0435\:043d\:044b \:0437\:043d\:0430\:043c\:0435\:043d\:0430\:0442\:0435\:043b\:0435\:0439*)
 (*\:041f\:0440\:0435\:0434\:043f\:043e\:043b\:0430\:0433\:0430\:0435\:043c, \:0447\:0442\:043e \:0447\:0438\:0441\:043b\:043e \:043f\:0435\:0442\:043b\:0435\:0432\:044b\:0445 \:0438\:043c\:043f\:0443\:043b\:044c\:0441\:043e\:0432 \:0441\:043e\:0432\:043f\:0430\:0434\:0430\:0435\:0442 \:0438 \:0447\:0442\:043e \:0441\:043e\:0432\:043f\:0430\:0434\:0430\:044e\:0442 \:0432\:0441\:0435 \:0432\:043d\:0435\:0448\:043d\:0438\:0435 \:0438\:043c\:043f\:0443\:043b\:044c\:0441\:044b*)
 (**)
@@ -3307,7 +3406,7 @@ i=0;LiteRedMonitor[
 Function[sec,
 i++;jsm=sec;
 (**)
-pnf={#1,#2[[1,All,1]]}&@@polyNF[fp/.Thread[Pick[xs,List@@Rest@sec,0]->0],Pick[xs,List@@Rest@sec,1]];
+pnf={#1,#2[[1,All,1]]}&@@polyNF[fp/.Thread[Pick[xs1,List@@Rest@sec,0]->0],Pick[xs1,List@@Rest@sec,1]];
 (*after 17.06.2014*)
 Catch[
 (jsm=sec->First@#;
@@ -3317,7 +3416,7 @@ Function[sr,
 inds=Replace[OptionValue[NamingFunction],Automatic:>$NamingFunction][Length@ds1];
 matr=dmatr[[k]]/.sr;
 If[(****)Factor[cds1*(matr . cds2)]===cds1,
-b1/:jExtRules[Sequence@@sec]=(j[b1,##]&@@(If[#1==1,"pt"["p"[#2,Blank[]],Positive],"pt"["p"[#2,Blank[]],NonPositive]]&@@@Transpose[{List@@Rest@sec,inds}])/.{"pt"->PatternTest,"p"->Pattern})(*/lhs*):>Expand[#]&[Times@@(Toj[b2,matr . Append[Ds@b2,(*\:0415\:0434\:0438\:043d\:0438\:0446\:0430*)j[b2,Sequence@@ConstantArray[0,Length@ds1]]]]^-inds)];
+b1/:jExtRules[Sequence@@sec]=(j[b1,##]&@@(If[#1==1,"pt"["p"[#2,Blank[]],Positive],"pt"["p"[#2,Blank[]],NonPositive]]&@@@Transpose[{List@@Rest@sec,inds}])/.{"pt"->PatternTest,"p"->Pattern})(*/lhs*):>Expand[#]&[Times@@(Toj[b2,matr . Append[Ds@b2,(*\:0415\:0434\:0438\:043d\:0438\:0446\:0430*)j[b2,Sequence@@ConstantArray[0,Length@ds2]]]]^-inds)];
 AppendTo[empd,sec->First@#];
 Throw[Null]]]/@sol
 ,{k,Length@dmatr}])&/@Cases[us2,{_,First@pnf,_}]
@@ -3333,7 +3432,7 @@ If[!ValueQ[ExtSectorsMappings[b1]],ExtSectorsMappings[b1]^={}];
 ExtSectorsMappings[b1]^=SortBy[Join[ExtSectorsMappings[b1],empd],{Count[#[[1]],1],#}&];
 b1/:ExtSectorsMappings[b1,ns:(0|1)..]:=Cases[ExtSectorsMappings[b1],HoldPattern[js[b1,ns]->_]];
 ExtUniqueSectors[b1]^=SortBy[Complement[ExtUniqueSectors[b1],First/@empd],{Count[#,1],#}&];
-LiteRedPrint["Found "<>ToString[Length@empd]<>" mapped sectors.\n    ExtUniqueSectors["<>ToString[b1]<>"] \[LongDash] new sectors of the basis.\n\    ExtMappedSectors["<>ToString[b1]<>"] \[LongDash] a list of mapped sectors.\n    jExtRules["<>ToString[b1]<>",\[Ellipsis]] \[LongDash] reduction rules for j["<>ToString[b1]<>",\[Ellipsis]] from ExtMappedSectors["<>ToString[b1]<>"].\n\    ExtSectorsMappings["<>ToString[b1]<>"] \[LongDash] gives the list of mappings of all sectors from ExtMappedSectors["<>ToString[b1]<>"] to unique sectors of other bases."];
+LiteRedPrint["Found "<>ToString[Length@empd]<>" sectors mapped onto "<>ToString[b2]<>".\n    ExtUniqueSectors["<>ToString[b1]<>"] \[LongDash] new sectors of the basis.\n\    ExtMappedSectors["<>ToString[b1]<>"] \[LongDash] a list of mapped sectors.\n    jExtRules["<>ToString[b1]<>",\[Ellipsis]] \[LongDash] reduction rules for j["<>ToString[b1]<>",\[Ellipsis]] from ExtMappedSectors["<>ToString[b1]<>"].\n\    ExtSectorsMappings["<>ToString[b1]<>"] \[LongDash] gives the list of mappings of all sectors from ExtMappedSectors["<>ToString[b1]<>"] to unique sectors of other bases."];
 Length@empd(*Return number of mapped sectors*)
 ]
 
@@ -3503,22 +3602,29 @@ IBPSelect::usage="IBPSelect[\!\(\*
 StyleBox[\"expr\", \"TI\"]\),\!\(\*
 StyleBox[\"dir\", \"TI\"]\)] performs the selection of rules needed for the reduction of \!\(\*
 StyleBox[\"expr\", \"TI\"]\) and saves them in \!\(\*
-StyleBox[\"dir\", \"TI\"]\).";
+StyleBox[\"dir\", \"TI\"]\).\nOptions:\n  jExtRules\[Rule]True|False:True whether to use external rules,\n  jRules->\!\(\*
+StyleBox[\"function\", \"TI\"]\):jRules a function to apply to sector to get the corresponding rules.\njRules option admits shorcuts \!\(\*
+StyleBox[\"f1\", \"TI\"]\)\!\(\*
+StyleBox[\"|\", \"TI\"]\)\!\(\*
+StyleBox[\"...\", \"TI\"]\)\!\(\*
+StyleBox[\"|\", \"TI\"]\)\!\(\*
+StyleBox[\"fk\", \"TI\"]\).";
 
 
-Options[IBPSelect]={jExtRules->True,jSector->_,jRules->jRules};
+Options[IBPSelect]={jExtRules->True,jRules->jRules,jSector->_};
 
 
 IBPSelect[expr_,dir_String,OptionsPattern[]]:=Module[
 {extrules,
 nd,nd1,
 jplist,jplist1,jlist,
+jvars={},
 jsd,
 mis={},
 jsec,hjsec,
 jsecpat=OptionValue[jSector],
 jsector=Replace[js@@#,{_?Positive->1,_?NonPositive->0},{1}]&,
-ojRules=OptionValue[jRules],
+ojRules=Replace[OptionValue[jRules],(Verbatim[Alternatives]|Verbatim[List])[fs__]:>(Evaluate[Through[{fs}[##]]]&)],
 t1,t2,
 jrules,
 rs0,rs,
@@ -3543,6 +3649,7 @@ jsec=(*(*Deleted 12.07.2016*)(*Added 12.07.2016*)Cases[(*/Added 12.07.2016*)(*/D
 Which[ZeroSectorQ@hjsec,
 jlist=Cases[jplist,{x_,hjsec}:>(x->0)];
 jplist=DeleteCases[jplist,{_,hjsec}];
+jvars={jvars,First/@jlist};
 Put[{Length@jlist,jlist},dir<>"/"<>ToString[hjsec]];
 ,
 !MatchQ[hjsec,jsecpat],(*don't reduce integrals of sectors which don't match jsecpat*)
@@ -3563,7 +3670,7 @@ jlist=DeleteDuplicates[Join[First/@Take[Last[t1],-First[t1]],jlist]]
 If[!extrules||Head[jrules=jExtRules@@hjsec/.PatternTest->(#1&)]===jExtRules,
 jrules=(*Modified 02.12.2016*)ojRules@@hjsec/.PatternTest->(#1&)(*/Modified 02.12.2016*)
 ];
-t1=Length@jlist;
+t1=Length@jlist;(*\:0447\:0438\:0441\:043b\:043e \:043f\:0440\:0430\:0432\:0438\:043b, \:043d\:0435\:043e\:0431\:0445\:043e\:0434\:0438\:043c\:044b\:0445 \:0434\:043b\:044f \:043d\:0430\:0434\:0441\:0435\:043a\:0442\:043e\:0440\:043e\:0432*)
 While[jlist=!={},
 nrs=Replace[jlist,jrules,{1}];
 rs0=Join[jlist,rs0];rs=Join[nrs,rs];
@@ -3575,6 +3682,12 @@ jlist=Cases[jlist,{x_,hjsec}:>x](*\:043c\:043e\:0436\:043d\:043e \:0438\:0441\:0
 ];
 t2=Thread[rs0-> rs];(*\:0441\:043f\:0438\:0441\:043e\:043a \:0434\:043e\:0431\:044b\:0442\:044b\:0445 \:043f\:0440\:0430\:0432\:0438\:043b*)
 mis={mis,Cases[t2,HoldPattern[x_->x_]:>x]};(*\:043c\:0430\:0441\:0442\:0435\:0440\:0430 \:043f\:043e \:043e\:043f\:0440\:0435\:0434\:0435\:043b\:0435\:043d\:0438\:044e \:043d\:0438 \:0447\:0435\:0440\:0435\:0437 \:0447\:0442\:043e \:043d\:0435 \:0432\:044b\:0440\:0430\:0436\:0430\:044e\:0442\:0441\:044f*)
+(*Added 24.04.2023*)
+(*\:0443\:0431\:0438\:0440\:0430\:0435\:043c \:0442\:0430\:0432\:0442\:043e\:043b\:043e\:0433\:0438\:0447\:0435\:0441\:043a\:0438\:0435 \:043f\:0440\:0430\:0432\:0438\:043b\:0430*)
+t1=t1-Count[Take[t2,-t1],HoldPattern[x_->x_]];
+t2=DeleteCases[t2,HoldPattern[x_->x_]];
+jvars={jvars,First/@t2,Last[mis]};
+(*/Added 24.04.2023*)
 Put[{t1,t2},dir<>"/"<>ToString[hjsec]];
 (*t1 \[LongDash] \:0447\:0438\:0441\:043b\:043e \:043f\:0440\:0430\:0432\:0438\:043b \:0432 \:043a\:043e\:043d\:0446\:0435 \:0441\:043f\:0438\:0441\:043a\:0430 t2, \:043b\:0435\:0432\:044b\:0435 \:0447\:0430\:0441\:0442\:0438 \:043a\:043e\:0442\:043e\:0440\:044b\:0445 \:043f\:043e\:044f\:0432\:043b\:044f\:044e\:0442\:0441\:044f \:0432 \:0432\:044b\:0440\:0430\:0436\:0435\:043d\:0438\:044f\:0445 \:0438\:0437 \:0431\:043e\:043b\:0435\:0435 \:0432\:044b\:0441\:043e\:043a\:0438\:0445 \:0441\:0435\:043a\:0442\:043e\:0440\:043e\:0432.
  \:041e\:0441\:0442\:0430\:043b\:044c\:043d\:044b\:0435 \:043f\:0440\:0430\:0432\:0438\:043b\:0430 \:0432 t2 \:043f\:043e\:044f\:0432\:043b\:044f\:044e\:0442\:0441\:044f \:0442\:043e\:043b\:044c\:043a\:043e \:043f\:0440\:0438 \:043f\:0440\:0438\:0432\:0435\:0434\:0435\:043d\:0438\:0438 \:0438\:043d\:0442\:0435\:0433\:0440\:0430\:043b\:043e\:0432 \:0438\:0437 \:0434\:0430\:043d\:043d\:043e\:0433\:043e \:0441\:0435\:043a\:0442\:043e\:0440\:0430.*)
@@ -3592,6 +3705,8 @@ TableForm[{{Overlay[{ProgressIndicator[nd-nd1,{0,nd}],nr},Alignment->Center]},{h
 (*\:043c\:0430\:0441\:0442\:0435\:0440\:0430*)
 mis=Flatten@mis;
 Put[mis,dir<>"/MIs"];
+jvars=SortBy[Flatten@jvars,jComplexity];
+Put[jvars,dir<>"/jVars"];
 Put[jsd,dir<>"/jsDependencies"];
 nr]
 
@@ -3648,7 +3763,7 @@ jrules=jrules/.Dispatch[Join@@((Last@Get[dir<>"/"<>ToString[#]])&/@Last[#])];
 (*\:0420\:0430\:0437\:0431\:0438\:0435\:043d\:0438\:0435 \:043d\:0430 \:0441\:0442\:0443\:043f\:0435\:043d\:0438*)
 (*status="Layering sector";*)
 (*\:0443\:0434\:0430\:043b\:044f\:0435\:043c \:0442\:0440\:0438\:0432\:0438\:0430\:043b\:044c\:043d\:044b\:0435 \:043f\:0440\:0430\:0432\:0438\:043b\:0430 \:0434\:043b\:044f \:043c\:0430\:0441\:0442\:0435\:0440\:043e\:0432*)
-jrules={0,First@#,Cases[{Last@#},_j,\[Infinity]],#}&/@DeleteCases[jrules,HoldPattern[x_->x_]];
+jrules={0,First@#,Cases[{Last@#},_j,\[Infinity]],#}&/@jrules;
 level[_]=0;
 jrules=FixedPoint[{level[#2]=1+Max[0,level/@#3],##2}&@@@#&,jrules];
 Clear[level];
@@ -3660,11 +3775,12 @@ Scan[(
 t1=#/.Dispatch[jrules1];
 (*status="Finished substituing!";*)
 (*status="Collecting!";*)
-If[TrueQ[OptionValue[Fermatica`UseFermat]],
+(*If[TrueQ[OptionValue[Fermatica`UseFermat]],
 {t1,{subs}}=Reap[#1->Collect[#2,_j,(c=Unique["c"];Sow[{c,#}];c)&]&@@@t1];
 t1=t1/.Dispatch[Thread[First/@subs->Fermatica`FTogether[Last/@subs]]];
 ,
-t1=(#1->collect[#2])&@@@t1];
+t1=(#1->collect[#2])&@@@t1];*)
+t1=(#1->collect[#2])&@@@t1;
 jrules1=Join[jrules1,t1];
 nr1+=Length@t1
 (*status="Finished collecting!";*)
@@ -3684,6 +3800,40 @@ res:=Abort[]
 ];
 DeleteDirectory[dir,DeleteContents->True];
 res]
+
+
+FermatIBPReduce::usage="FermatIBPReduce[\!\(\*
+StyleBox[\"expr\", \"TI\"]\)] performs the reduction of the \!\(\*
+StyleBox[\"expr\", \"TI\"]\) applying rules found by FindSymmetries and SolvejSector.";
+(*DWeight::usage="DWeight\[Rule]n  is an option for IBPReduce which determines the extra priority points for each denominator.";*)
+
+
+Options[FermatIBPReduce]={Run->True};
+
+
+FermatIBPReduce[ex_,OptionsPattern[]]:=Module[{mis,jvars,dir,nrt,nr,k=1,prevdir=Directory[],j2n,jsecs,jvs,rules,matr,vrules,program,fermat,reap,resrules={},res,ex1},
+While[FileExistsQ[dir="IBPReduction"<>ToString[k]],k++];
+CreateDirectory[dir];
+IBPSelect[ex,dir];
+mis=Get[dir<>"/MIs"];
+LiteRedPrintTemporary["MIs: ",mis];
+reap[l_List]:=reap/@l;reap[x_]:=(AppendTo[resrules,#->x];#)&[j[Unique["r"]]];
+ex1=First@reap[{ex}];
+jvars=Join[First/@resrules,Reverse@Get[dir<>"/jVars"]];
+j2n=Dispatch[Thread[jvars->Range[Length[jvars]]]];
+jsecs=Sort[DeleteDuplicates[Flatten[Last/@Get[dir<>"/jsDependencies"]]],Less];
+Monitor[rules=Join[SortBy[Flatten[Map[Last[Get[dir<>"/"<>ToString[#]]]&,jsecs]],jComplexity@*First],resrules],"Getting rules from files..."];
+nrt=Length[rules];
+Monitor[rules=Flatten[MapIndexed[Function[{rule,i},jvs=Cases[rule,_j,-1];Thread[(Append[i,#]&/@jvs)->Coefficient[-Subtract@@rule,jvs]]],rules]/.j2n];,"Constructing sparse matrix..."];
+DeleteDirectory[dir,DeleteContents->True];
+vrules=Thread[#->Table[Unique["v"],{Length[#]}]]&[Variables[Last/@rules]];
+matr=SparseArray[rules/.vrules];debugmatr=matr;
+nr=0;
+program=ReadString[$LiteRedHomeDirectory<>"FermatCode/ibpreduce"]<>"\n"<>StringRiffle["&(J="<>ToString[Last@#]<>");"&/@vrules,"\n"]<>"\n"<>Fermatica`Private`smat2str[matr,"table"]<>"\n&(S='<<out>>');\nIBPred([table]);\n&(S=@);";
+Monitor[res=Fermatica`FermatSession[program,nr,Which[StringMatchQ[#2,"* rows reduced."],ToExpression[StringDrop[#2,-14]],StringMatchQ[#2,"* debug"],Print[#2];#1,True,#1]&,Run->OptionValue[Run]],Overlay[{ProgressIndicator[nr,{0,nrt}],ToString[nr]<>"/"<>ToString[nrt]},Alignment->Center]];
+If[TrueQ[OptionValue[Run]],res=ex1/.ToExpression[StringReplace[res,"j("~~a:Except[")"]..~~")":>ToString[jvars[[ToExpression[a]]]]]]/.(Reverse/@vrules)];
+Return[res]
+]
 
 
 ToMIsRule::usage = "ToMIsRule[{j[\[Ellipsis]],j[\[Ellipsis]],...}] gives a rule to pass to new master integrals.";
@@ -5177,19 +5327,27 @@ FeynGraphPlot::usage="FeynGraphPlot[jGraph[j[...]], \!\(\*
 StyleBox[\"options\",\nFontSlant->\"Italic\"]\)] draws a graph.\nAccepted graph format is a list with each element being {e,{s,n,l}}, where e is an edge (like in 1\[Rule]2), s is the line style, n in the number of dots, l is a label. Many options are common with GraphPlot. Altered/new options are EdgeLabeling,VertexStyle, VertexSize, LabelStyle, EdgeStyle, EdgeLabeling.\nTo understand their format, check their default values with Options[FeynGraphPlot, {VertexStyle, VertexSize, LabelStyle, EdgeStyle, EdgeLabeling}].";
 
 
-Options[FeynGraphPlot]={VertexCoordinateRules->Automatic,EdgeLabeling->False,EdgeStyle->{_->Black},VertexStyle->{_->{Black,Disk[]}},VertexSize->{_->0.01},Background->None,Frame->False,FrameLabel->None,FrameStyle->{},LabelStyle->{},ImageMargins->0,ImagePadding->All,ImageSize->Automatic,ImageSizeRaw->Automatic,LabelStyle->{},Method->Automatic,MultiedgeStyle->Automatic,PackingMethod->Automatic,PlotLabel->None,PlotStyle->Automatic};
+Options[FeynGraphPlot]={GraphLayout->"SpringElectricalEmbedding",VertexCoordinateRules->Automatic,EdgeLabeling->False,EdgeStyle->{_->Black},VertexStyle->{_->{Black,Disk[]}},VertexSize->{_->0.01},Background->None,Frame->False,FrameLabel->None,FrameStyle->{},LabelStyle->{},ImageMargins->0,ImagePadding->All,ImageSize->Automatic,ImageSizeRaw->Automatic,LabelStyle->{},Method->Automatic,MultiedgeStyle->Automatic,PackingMethod->Automatic,PlotLabel->None,PlotStyle->Automatic};
+
+
+arrowpos:={#1,#1+#2}&[Mean@#[[{Floor[(Length[#]+1)/2],Ceiling[(Length[#]+1)/2]}]],(#[[-1]]-#[[1]])/1000]&;
+
+
+FeynGraphPlot::err="Don't understand edge format in `1`";
 
 
 FeynGraphPlot[graph_,OptionsPattern[]]:=Module[{verts,erule,esf,estyle=OptionValue[EdgeStyle],vstyle=OptionValue[VertexStyle],vsize=OptionValue[VertexSize],sd,ce,opts,gr=MapAt[Sort,graph,{All,1}],es,m11=$VersionNumber<12},
-erule={{e_,{s_,n_,k_}}:>((es=Replace[s/.estyle,List[a__]:>Directive[a]];{DeleteCases[es,_Function|(_Symbol?(DownValues[#]=!={}&))],Arrowheads[Join[Array[{Replace[{e,s},vsize]/2,#/(n+1),Graphics@{Opacity[1],Replace[{e,s},Flatten[{vstyle}]]}}&,n,1],If[m11,{{Replace[First@e,vsize]/2,0,Graphics@{Opacity[1],Replace[First@e,Flatten[{vstyle}]]}},{Replace[Last@e,vsize]/2,1,Graphics@{Opacity[1],Replace[Last@e,Flatten[{vstyle}]]}}},{}]]],Arrow[FirstCase[Reverse[es],_Function|(_Symbol?(DownValues[#]=!={}&)),Identity][#]],If[TrueQ@OptionValue[EdgeLabeling],Style[Text[k,Mean[#[[Through[{Floor,Ceiling}[(Length[#]+1)/2]]]]]],OptionValue[LabelStyle]],Sequence@@{}]})&)};
+gr=MapIndexed[Replace[#,{{e_,s:Except[_List]}:>{e,{s,0,ToString@@#2}},{e_,s:Except[_List],p_}:>{e,{s,0,ToString@@#2<>": "<>ToString[p,TraditionalForm]}},{e_,{s_,n_,k_}}:>{e,{s,n,k}},edge_:>Message[FeynGraphPlot::err,edge]}]&,gr];
+erule={{e_,{s_,n_,k_}}:>((es=Replace[s/.estyle,List[a__]:>Directive[a]];{DeleteCases[es,_Function|(_Symbol?(DownValues[#]=!={}&))|Arrow],
+Arrowheads[Join[Array[{Replace[{e,s},vsize]/2,#/(n+1),Graphics@{Opacity[1],Replace[{e,s},Flatten[{vstyle}]]}}&,n,1],If[m11,{{Replace[First@e,vsize]/2,0,Graphics@{Opacity[1],Replace[First@e,Flatten[{vstyle}]]}},{Replace[Last@e,vsize]/2,1,Graphics@{Opacity[1],Replace[Last@e,Flatten[{vstyle}]]}}},{}]]],Arrow[FirstCase[Reverse[es],_Function|(_Symbol?(DownValues[#]=!={}&)),Identity][#]],If[MemberQ[es,Arrow],Sequence@@{Arrowheads[Automatic],Arrow[arrowpos[#]]},Sequence@@{}],If[TrueQ@OptionValue[EdgeLabeling],Style[Text[k,Mean[#[[Through[{Floor,Ceiling}[(Length[#]+1)/2]]]]]],OptionValue[LabelStyle]],Sequence@@{}]})&)};
 opts=FilterRules[#->OptionValue[#]&/@DeleteCases[First/@Options[FeynGraphPlot],VertexStyle|VertexSize|LabelStyle|EdgeStyle|EdgeLabeling],Options[GraphPlot]];
 verts=Union@@(List@@@gr[[All,1]]);
 If[m11,
 (*Mma <12*)
 GraphPlot[gr,opts,EdgeRenderingFunction->(Replace[{#2,#3},erule][#1]&),DirectedEdges->False,
-VertexRenderingFunction->None,VertexCoordinateRules->OptionValue[VertexCoordinateRules]],
+VertexRenderingFunction->None,VertexCoordinateRules->OptionValue[VertexCoordinateRules],GraphLayout->OptionValue[GraphLayout]],
 (*Mma >=12*)
-Function[{e,esfl},ReleaseHold[Hold@@{sd[esf[List@@e],Fold[ce[sd[esf[List@@e],#1],#2]&,esfl]]}/.{sd->SetDelayed,ce->CompoundExpression}]]@@@Normal[GroupBy[gr,First->(Replace[#,erule]&)]];GraphPlot[gr[[All,1]],EdgeShapeFunction->((esf[Sort[List@@#2]][#1])&),opts,VertexShape->(#->Graphics[Replace[#,vstyle]]&/@verts),VertexSize->(#->{"Scaled",Replace[#,vsize]}&/@verts),DirectedEdges->False,VertexCoordinateRules->OptionValue[VertexCoordinateRules]]]
+Function[{e,esfl},ReleaseHold[Hold@@{sd[esf[List@@e],Fold[ce[sd[esf[List@@e],#1],#2]&,esfl]]}/.{sd->SetDelayed,ce->CompoundExpression}]]@@@Normal[GroupBy[gr,First->(Replace[#,erule]&)]];GraphPlot[gr[[All,1]],EdgeShapeFunction->((esf[Sort[List@@#2]][#1])&),opts,VertexShape->(#->Graphics[Replace[#,vstyle]]&/@verts),VertexSize->(#->{"Scaled",Replace[#,vsize]}&/@verts),DirectedEdges->False,VertexCoordinates->OptionValue[VertexCoordinateRules],GraphLayout->OptionValue[GraphLayout]]]
 ];
 
 
@@ -5200,6 +5358,9 @@ Options[jGraphPlot]:=Options[FeynGraphPlot]
 
 
 jGraphPlot[jj_,opts:OptionsPattern[]]:=FeynGraphPlot[jGraph[jj,Label->{Style,Dot,Number}],opts];
+
+
+todo["FeynGraphPlot does not understand directed edges!"]
 
 
 csow[x_Plus,y_]:=csow[#,y]&/@x;

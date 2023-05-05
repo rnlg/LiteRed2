@@ -48,7 +48,7 @@ VecQ::usage="VecQ[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR]] gives True if \[Scri
 VecVarQ::usage="VecVarQ[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR]] gives True if \[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR] is a variable of type Vector";
 VecIndQ::usage="VecIndQ[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR]] gives True if \[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR] is of type VectorIndex";
 TCompQ::usage="TCompQ[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR]] gives True if \[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR] is of type TComponent[...]";
-TComponentQ::usage="TComponentQ[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR],{\[ScriptU]\[ScriptP]\[ScriptP]\[ScriptE]\[ScriptR]},{\[ScriptL]\[ScriptO]\[ScriptW]\[ScriptE]\[ScriptR]}] gives true if TypeOf[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR]] matches TComponent[{\[ScriptU]\[ScriptP]\[ScriptP]\[ScriptE]\[ScriptR]},{\[ScriptL]\[ScriptO]\[ScriptW]\[ScriptE]\[ScriptR]},_List]";
+TComponentQ::usage="TComponentQ[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR],{\[ScriptU]\[ScriptP]\[ScriptP]\[ScriptE]\[ScriptR]},{\[ScriptL]\[ScriptO]\[ScriptW]\[ScriptE]\[ScriptR]}] gives true if ExpressionType[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR]] matches TComponent[{\[ScriptU]\[ScriptP]\[ScriptP]\[ScriptE]\[ScriptR]},{\[ScriptL]\[ScriptO]\[ScriptW]\[ScriptE]\[ScriptR]},_List]";
 VPolyQ::usage="VPolyQ[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR],\[ScriptV]\[ScriptE]\[ScriptC]] gives True when \[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR] is a polynomial in vector variable \[ScriptV]\[ScriptE]\[ScriptC].\n
 VPolyQ[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR]] gives True when \[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR] is a polynomial in all vector variables";
 
@@ -262,8 +262,8 @@ HoldPattern[SupIndex[(x_Plus)?VecQ,y_?VecIndQ]]:=SupIndex[#,y]&/@x;
 HoldPattern[SubIndex[(x_Plus)?VecQ,y_?VecIndQ]]:=SubIndex[#,y]&/@x;
 HoldPattern[SupIndex[(x_?NumQ)*z_?VecQ,y_?VecIndQ]]:=x*SupIndex[z,y];
 HoldPattern[SubIndex[(x_?NumQ)*z_?VecQ,y_?VecIndQ]]:=x*SubIndex[z,y];
-SupIndex[v_,i_Symbol]/;(TypeOf[i]===Untyped&&(AutoDeclareVI/.Options[SupIndex])):=(Declare[i,VectorIndex];SupIndex[v,i])
-SubIndex[v_,i_Symbol]/;(TypeOf[i]===Untyped&&(AutoDeclareVI/.Options[SubIndex])):=(Declare[i,VectorIndex];SubIndex[v,i])
+SupIndex[v_,i_Symbol]/;(ExpressionType[i]===Untyped&&(AutoDeclareVI/.Options[SupIndex])):=(Declare[i,VectorIndex];SupIndex[v,i])
+SubIndex[v_,i_Symbol]/;(ExpressionType[i]===Untyped&&(AutoDeclareVI/.Options[SubIndex])):=(Declare[i,VectorIndex];SubIndex[v,i])
 
 
 (* ::Subsubsection:: *)
@@ -513,10 +513,10 @@ UpperIndex[x_,i_List]:=Fold[UpperIndex,x,i];
 (*UpperIndices,LowerIndices,Indices,Dummies,AllIndices,SwapIndices*)
 
 
-UpperIndices[expr_]:=uli[[1]]/;MatchQ[uli=TypeOf[expr],_TComponent];
-LowerIndices[expr_]:=uli[[2]]/;MatchQ[uli=TypeOf[expr],_TComponent];
-Indices[expr_]:=List@@uli[[{1,2}]]/;MatchQ[uli=TypeOf[expr],_TComponent];
-Dummies[expr_]:=Module[{a=TypeOf[Unevaluated[expr]]},If[Head[a]===TComponent,Sort[a[[3]],VISort],{}]];
+UpperIndices[expr_]:=uli[[1]]/;MatchQ[uli=ExpressionType[expr],_TComponent];
+LowerIndices[expr_]:=uli[[2]]/;MatchQ[uli=ExpressionType[expr],_TComponent];
+Indices[expr_]:=List@@uli[[{1,2}]]/;MatchQ[uli=ExpressionType[expr],_TComponent];
+Dummies[expr_]:=Module[{a=ExpressionType[Unevaluated[expr]]},If[Head[a]===TComponent,Sort[a[[3]],VISort],{}]];
 AllIndices[expr_]:=Union[Cases[{expr},_?VecIndQ,\[Infinity]]];
 SwapIndices[expr_]:=UpperIndex[LowerIndex[expr,#1],#2]&@@Indices[expr];
 
@@ -528,7 +528,7 @@ SwapIndices[expr_]:=UpperIndex[LowerIndex[expr,#1],#2]&@@Indices[expr];
 Options[ReduceDummies]={RemoveDummies->False};
 
 
-rn[x_,{b__,a_}]:=(Do[If[y=Hold[Unevaluated[x]]/.a->{b}[[j]];MatchQ[TypeOf@@y,Number|_TComponent],AppendTo[ri,a];y=y[[1,1]];Break[],y=x],{j,1,Length[{b}]}];rn[y,{b}])
+rn[x_,{b__,a_}]:=(Do[If[y=Hold[Unevaluated[x]]/.a->{b}[[j]];MatchQ[ExpressionType@@y,Number|_TComponent],AppendTo[ri,a];y=y[[1,1]];Break[],y=x],{j,1,Length[{b}]}];rn[y,{b}])
 rn[x_,_]:=x;
 f={#,","}&;
 ReduceDummies[x_]:=ReduceDummies[x,True->True]
@@ -589,8 +589,8 @@ VGrad[VGrad[h_,a1_List,a2_List],b1_List,b2_List]:=VGrad[h,Sort[Join[a1,b1]],Sort
 VGrad/:VGrad[V_,a_List,b_List][x_?VecQ]:=(Declare[#,Vector];Partial[V[#],Sequence@@(Function[{c},SubIndex[#,c]]/@a),Sequence@@(Function[{c},SupIndex[#,c]]/@b)]/.#->x)&[Unique["Vectors`vec"]]/;Hold[V[x]]=!=Hold@@{V[x]}
 
 
-TypeTable[VGrad[h_,a_List,b_List]]:={{{Vector,_}}->Module[{c = (TypeOf[h])}, If[MatchQ[c,Function[_Rule|_RuleDelayed]],c=Rule@@c[[1]];If[c == ({{Vector, _}} -> Number ),c= {{Vector, _}} -> TComponent[{}, {}, {}] ];If[MatchQ[c, {{Vector, _}} -> TComponent[_, _, _]],TComponent[Join[c[[2,1]], a], Join[c[[2,2]], b], c[[2,3]]], Badformed],Badformed]],{{Untyped,_}...}->Untyped,_List->Badformed}
-VGrad/:HoldPattern[TypeX[gr:(VGrad[h_,a_List,b_List])]]:={Module[{c = (TypeOf[h])},If[MatchQ[c,Function[_Rule|_RuleDelayed]],c=Rule@@c[[1]];If[c == ({{Vector, _}} -> Number ),c= {{Vector, _}} ->TComponent[{}, {}, {}] ];If[MatchQ[c, {{Vector, _}} -> TComponent[_, _, _]],Function[Evaluate[{{Vector,_}}->TComponent[Join[c[[2,1]], a], Join[c[[2,2]], b], c[[2,3]]]]], Badformed],Badformed]],Unevaluated[gr]}
+TypeTable[VGrad[h_,a_List,b_List]]:={{{Vector,_}}->Module[{c = (ExpressionType[h])}, If[MatchQ[c,Function[_Rule|_RuleDelayed]],c=Rule@@c[[1]];If[c == ({{Vector, _}} -> Number ),c= {{Vector, _}} -> TComponent[{}, {}, {}] ];If[MatchQ[c, {{Vector, _}} -> TComponent[_, _, _]],TComponent[Join[c[[2,1]], a], Join[c[[2,2]], b], c[[2,3]]], Badformed],Badformed]],{{Untyped,_}...}->Untyped,_List->Badformed}
+VGrad/:HoldPattern[TypeX[gr:(VGrad[h_,a_List,b_List])]]:={Module[{c = (ExpressionType[h])},If[MatchQ[c,Function[_Rule|_RuleDelayed]],c=Rule@@c[[1]];If[c == ({{Vector, _}} -> Number ),c= {{Vector, _}} ->TComponent[{}, {}, {}] ];If[MatchQ[c, {{Vector, _}} -> TComponent[_, _, _]],Function[Evaluate[{{Vector,_}}->TComponent[Join[c[[2,1]], a], Join[c[[2,2]], b], c[[2,3]]]]], Badformed],Badformed]],Unevaluated[gr]}
 
 
 (* ::Subsubsection:: *)

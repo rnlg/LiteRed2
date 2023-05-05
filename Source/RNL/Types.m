@@ -9,7 +9,8 @@
 
 
 (* ::Text:: *)
-(**)
+(*Finally, there emerged  cnflict with Mathematica 13.3 TypeOf procedure!*)
+(*As the main goal of this project was to be able to calculate the type of expression, we will change TypeOf->ExpressionType*)
 
 
 (* ::Section:: *)
@@ -43,8 +44,8 @@ as variables of type \[ScriptT]\[ScriptY]\[ScriptP]\[ScriptE]2 etc. and calls In
 InitFunction::usage="InitFunction[\[ScriptV]\[ScriptA]\[ScriptR],\[ScriptT]\[ScriptY]\[ScriptP]\[ScriptE]] is called by Declare[\[ScriptV]\[ScriptA]\[ScriptR],\[ScriptT]\[ScriptY]\[ScriptP]\[ScriptE]]. Redefine it if you want to perform some operations when the variable is declared.";
 
 
-TypeOf::usage="TypeOf[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR]] gives the type of \[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR]."
-TypeBelowQ::usage="TypeBelowQ[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR],\[ScriptT]\[ScriptY]\[ScriptP]\[ScriptE]] gives True if TypeOf[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR]] is inside \[ScriptT]\[ScriptY]\[ScriptP]\[ScriptE].";
+ExpressionType::usage="ExpressionType[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR]] gives the type of \[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR]."
+TypeBelowQ::usage="TypeBelowQ[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR],\[ScriptT]\[ScriptY]\[ScriptP]\[ScriptE]] gives True if ExpressionType[\[ScriptE]\[ScriptX]\[ScriptP]\[ScriptR]] is inside \[ScriptT]\[ScriptY]\[ScriptP]\[ScriptE].";
 TypeX::usage="TypeX[<expr>] gives the pair {<type>,<expr>}";
 
 
@@ -141,17 +142,17 @@ TypesCacheFunction=(AppendTo[TypesClearList,#1];#1=#2)&*)
 
 
 (* ::Subsection:: *)
-(*TypeOf*)
+(*ExpressionType*)
 
 
-TypeOf[expr_]:=First[TypeX[Unevaluated[expr]]];
+ExpressionType[expr_]:=First[TypeX[Unevaluated[expr]]];
 
 
 (* ::Subsection:: *)
 (*TypeBelowQ*)
 
 
-TypeBelowQ[a_,t_]:=MatchQ[TypeOf[Unevaluated[a]],TypesBelow[t]];
+TypeBelowQ[a_,t_]:=MatchQ[ExpressionType[Unevaluated[a]],TypesBelow[t]];
 
 
 (* ::Subsection:: *)
