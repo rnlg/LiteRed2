@@ -1,0 +1,45 @@
+; (c) Roman Lee 2023
+; This file is a part of the LiteRed2 distribution.
+
+; This variant substitutes all previous rows in the current row.
+
+Function IBPReduce(nrows,row1,row2,fcol,fcol1,coef,i,j,time) =
+  { `
+    IBPReduce --- performs second stage of Gauss elimination.`
+    mat --- rules database`
+  }
+  !!(&o,'{'); {#################################################################}
+  nrows:=Rows[mat];
+  for row1 = 1,nrows do {row1 is a row which we subtract from the lower rows}
+    !('row',row1,' [');
+    for fcol = [mat]row1 do &> od;
+    coef := mat[row1,fcol];{fcol --- first column index}
+    if coef <> -1 then
+      for i = [mat]row1 do mat[row1,i] := *mat[row1,i]/coef od
+    fi;
+    time := &T;
+    for row2 = 1,row1-1 do
+      for fcol1 = [mat]row2 do &> od;{fcol1 --- first column index}
+      coef := mat[row1,fcol1];
+      if coef <> 0 then
+        !('.');
+        for i = [mat]row2 do mat[row1,i] := *mat[row1,i] + mat[row2,i]*coef od
+      fi;
+    od;
+    if &T > time + <<gctime>> then &_G fi;{garbage collection}
+    {output}
+    if row1 >= <<save>> then
+      if row1 > <<save>> then !!(&o,',') fi;
+      for i = [mat]row1 do
+        if i = fcol then
+          for j = 1,Cols[jvars] do !(&o,jvars[fcol,j]:char) od;
+          !(&o,' -> 0 ')
+        else
+          !(&o,'+ (',mat[row1,i],')',' * ');
+          for j = 1,Cols[jvars] do !(&o,jvars[i,j]:char) od
+        fi;
+      od
+    fi;
+    !!('] is reduced.');
+  od;
+  !!(&o,'}').; {###############################################################}
