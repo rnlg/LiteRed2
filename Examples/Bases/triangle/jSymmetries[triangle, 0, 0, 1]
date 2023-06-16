@@ -1,7 +1,0 @@
-{{j[triangle, (n1_)?NonPositive, (n2_)?NonPositive, (n3_)?Positive] :> 
-   Expand[j[triangle, n1, n2, n3]]}, 
- {j[triangle, (n1_)?NonPositive, (n2_)?NonPositive, (n3_)?Positive] :> 
-   Expand[j[triangle, 0, 0, n3]/
-     ((-j[triangle, -1, 0, 0] + 2*j[triangle, 0, 0, -1] - 
-        2*s2*j[triangle, 0, 0, 0])^n1*(-j[triangle, 0, -1, 0] + 
-        2*j[triangle, 0, 0, -1] - 2*s3*j[triangle, 0, 0, 0])^n2)]}}
