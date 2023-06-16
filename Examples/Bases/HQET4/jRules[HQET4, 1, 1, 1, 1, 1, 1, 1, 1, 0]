@@ -1,0 +1,95 @@
+Last[{{{1, 1, 1, 1, 1, 1, 1, 1, -1}, {0, 0, 0, 0, 0, 0, 0, 0, -1}, 
+   {-1, 0, 0, 0, 0, 0, 0, 0, 0}, {0, -1, 0, 0, 0, 0, 0, 0, 0}, 
+   {0, 0, -1, 0, 0, 0, 0, 0, 0}, {0, 0, 0, -1, 0, 0, 0, 0, 0}, 
+   {0, 0, 0, 0, -1, 0, 0, 0, 0}, {0, 0, 0, 0, 0, -1, 0, 0, 0}, 
+   {0, 0, 0, 0, 0, 0, -1, 0, 0}}, 
+  {j[HQET4, (n1_)?Positive, (n2_)?Positive, (n3_)?Positive, (n4_)?Positive, 
+      (n5_)?Positive, (n6_)?Positive, (n7_)?Positive, (n8_)?Positive, 
+      (n9_)?NonPositive] /; n8 != 1 :> j[HQET4, n1, n2, n3, n4, 1 + n5, n6, 
+      -1 + n7, n8, n9] + ((-1 - 2*d + n1 + n3 + 2*n4 + 2*n6 + 2*n7 + n8 + n9)*
+       j[HQET4, n1, n2, n3, n4, 1 + n5, n6, n7, -1 + n8, n9])/(-1 + n8) + 
+     (n3*j[HQET4, n1, n2, 1 + n3, -1 + n4, 1 + n5, n6, n7, -1 + n8, n9])/
+      (-1 + n8) - (n3*j[HQET4, n1, n2, 1 + n3, n4, n5, n6, n7, -1 + n8, n9])/
+      (-1 + n8) - (n1*j[HQET4, 1 + n1, -1 + n2, n3, n4, 1 + n5, n6, n7, 
+        -1 + n8, n9])/(-1 + n8), 
+   j[HQET4, (n1_)?Positive, (n2_)?Positive, (n3_)?Positive, (n4_)?Positive, 
+      (n5_)?Positive, (n6_)?Positive, (n7_)?Positive, (n8_)?Positive, 
+      (n9_)?NonPositive] /; n8 == 1 && n6 != 1 :> 
+    -1/2*(n9*j[HQET4, -1 + n1, n2, n3, 1 + n4, n5, -1 + n6, n7, 1, 1 + n9])/
+       (-1 + n6) + (n9*j[HQET4, n1, -1 + n2, n3, 1 + n4, n5, -1 + n6, n7, 1, 
+        1 + n9])/(2*(-1 + n6)) - ((-1 - d + n1 + n3 + 2*(1 + n4) + n6)*
+       j[HQET4, n1, n2, n3, 1 + n4, n5, -1 + n6, n7, 1, n9])/(-1 + n6) + 
+     j[HQET4, n1, n2, n3, 1 + n4, n5, n6, -1 + n7, 1, n9] - 
+     (n3*j[HQET4, n1, n2, 1 + n3, n4, n5, -1 + n6, n7, 1, n9])/(-1 + n6) + 
+     (n3*j[HQET4, n1, n2, 1 + n3, 1 + n4, -1 + n5, -1 + n6, n7, 1, n9])/
+      (-1 + n6) + (n1*j[HQET4, 1 + n1, -1 + n2, n3, 1 + n4, n5, -1 + n6, n7, 
+        1, n9])/(-1 + n6), j[HQET4, (n1_)?Positive, (n2_)?Positive, 
+      (n3_)?Positive, (n4_)?Positive, (n5_)?Positive, (n6_)?Positive, 
+      (n7_)?Positive, (n8_)?Positive, (n9_)?NonPositive] /; 
+     n6 == 1 && n8 == 1 && n2 != 1 :> 
+    -((n5*j[HQET4, 1 + n1, -1 + n2, -1 + n3, n4, 1 + n5, 1, n7, 1, n9])/
+       (-1 + n2)) + (n7*j[HQET4, 1 + n1, -1 + n2, n3, -1 + n4, n5, 1, 1 + n7, 
+        1, n9])/(-1 + n2) + (n5*j[HQET4, 1 + n1, -1 + n2, n3, -1 + n4, 
+        1 + n5, 1, n7, 1, n9])/(-1 + n2) - 
+     (n7*j[HQET4, 1 + n1, -1 + n2, n3, n4, n5, 0, 1 + n7, 1, n9])/(-1 + n2) - 
+     ((1 + d - n2 - 2*n4 - n5 - n7)*j[HQET4, 1 + n1, -1 + n2, n3, n4, n5, 1, 
+        n7, 1, n9])/(-1 + n2), 
+   j[HQET4, (n1_)?Positive, (n2_)?Positive, (n3_)?Positive, (n4_)?Positive, 
+      (n5_)?Positive, (n6_)?Positive, (n7_)?Positive, (n8_)?Positive, 
+      (n9_)?NonPositive] /; n2 == 1 && n6 == 1 && n8 == 1 && n1 != 1 :> 
+    (n4*j[HQET4, -1 + n1, 1, -1 + n3, 1 + n4, n5, 1, n7, 1, n9])/(-1 + n1) - 
+     (n7*j[HQET4, -1 + n1, 1, n3, n4, -1 + n5, 1, 1 + n7, 1, n9])/(-1 + n1) - 
+     ((-3 + 2*d - n1 - 2*n3 - n4 - n7 - n9)*j[HQET4, -1 + n1, 1, n3, n4, n5, 
+        1, n7, 1, n9])/(-1 + n1) + 
+     (n7*j[HQET4, -1 + n1, 1, n3, n4, n5, 1, 1 + n7, 0, n9])/(-1 + n1) - 
+     (n4*j[HQET4, -1 + n1, 1, n3, 1 + n4, -1 + n5, 1, n7, 1, n9])/(-1 + n1), 
+   j[HQET4, (n1_)?Positive, (n2_)?Positive, (n3_)?Positive, (n4_)?Positive, 
+      (n5_)?Positive, (n6_)?Positive, (n7_)?Positive, (n8_)?Positive, 
+      (n9_)?NonPositive] /; n1 == 1 && n2 == 1 && n6 == 1 && n8 == 1 && 
+      n5 != 1 :> -(j[HQET4, 0, 2, 1 + n3, n4, -1 + n5, 1, n7, 1, n9]/
+       (-1 + n5)) + (n7*j[HQET4, 1, 1, 1 + n3, -1 + n4, -1 + n5, 1, 1 + n7, 
+        1, n9])/(-1 + n5) + j[HQET4, 1, 1, 1 + n3, -1 + n4, n5, 1, n7, 1, 
+      n9] - (n7*j[HQET4, 1, 1, 1 + n3, n4, -1 + n5, 0, 1 + n7, 1, n9])/
+      (-1 + n5) - ((d - 2*n4 - n5 - n7)*j[HQET4, 1, 1, 1 + n3, n4, -1 + n5, 
+        1, n7, 1, n9])/(-1 + n5), 
+   j[HQET4, (n1_)?Positive, (n2_)?Positive, (n3_)?Positive, (n4_)?Positive, 
+      (n5_)?Positive, (n6_)?Positive, (n7_)?Positive, (n8_)?Positive, 
+      (n9_)?NonPositive] /; n1 == 1 && n2 == 1 && n5 == 1 && n6 == 1 && 
+      n8 == 1 &&  !(n7 == 1 || n9 == 0) :> 
+    j[HQET4, 0, 1, n3, n4, 1, 1, n7, 1, 1 + n9]/2 + 
+     (n4*j[HQET4, 0, 1, n3, 1 + n4, 1, 1, -1 + n7, 1, 1 + n9])/
+      (2*(-1 + n7)) - j[HQET4, 1, 0, n3, n4, 1, 1, n7, 1, 1 + n9]/2 - 
+     j[HQET4, 1, 0, n3, n4, 2, 1, -1 + n7, 1, 1 + n9]/(2*(-1 + n7)) - 
+     (n4*j[HQET4, 1, 0, n3, 1 + n4, 1, 1, -1 + n7, 1, 1 + n9])/
+      (2*(-1 + n7)) - (n4*j[HQET4, 1, 1, -1 + n3, 1 + n4, 1, 1, -1 + n7, 1, 
+        1 + n9])/(-1 + n7) + j[HQET4, 1, 1, n3, n4, 0, 1, n7, 1, 1 + n9] - 
+     ((-2 + d - n4 - n7)*j[HQET4, 1, 1, n3, n4, 1, 1, -1 + n7, 1, 1 + n9])/
+      (-1 + n7) - j[HQET4, 1, 1, n3, n4, 1, 1, n7, 0, 1 + n9] + 
+     j[HQET4, 1, 1, n3, n4, 2, 1, -1 + n7, 1, 1 + n9]/(2*(-1 + n7)) + 
+     (n4*j[HQET4, 1, 1, n3, 1 + n4, 0, 1, -1 + n7, 1, 1 + n9])/(-1 + n7), 
+   j[HQET4, (n1_)?Positive, (n2_)?Positive, (n3_)?Positive, (n4_)?Positive, 
+      (n5_)?Positive, (n6_)?Positive, (n7_)?Positive, (n8_)?Positive, 
+      (n9_)?NonPositive] /; n1 == 1 && n2 == 1 && n5 == 1 && n6 == 1 && 
+      n8 == 1 && n9 == 0 :> j[HQET4, 1, 1, n3, n4, 0, 1, n7, 2, 0]/
+      (4 - 2*d + n3 + 2*n4 + 2*n7) - 
+     ((1 + n3 - n7)*j[HQET4, 1, 1, 1 + n3, -1 + n4, 1, 1, n7, 1, 0])/
+      (4 - 2*d + n3 + 2*n4 + 2*n7) + 
+     (n3*j[HQET4, 1, 1, 1 + n3, n4, 0, 1, n7, 1, 0])/
+      (4 - 2*d + n3 + 2*n4 + 2*n7) - j[HQET4, 1, 1, 1 + n3, n4, 1, 0, 
+       -1 + n7, 2, 0]/(4 - 2*d + n3 + 2*n4 + 2*n7) - 
+     ((-1 + n7)*j[HQET4, 1, 1, 1 + n3, n4, 1, 0, n7, 1, 0])/
+      (4 - 2*d + n3 + 2*n4 + 2*n7) - 
+     ((2 - d + n7)*j[HQET4, 1, 1, 1 + n3, n4, 1, 1, -1 + n7, 1, 0])/
+      (4 - 2*d + n3 + 2*n4 + 2*n7) + j[HQET4, 2, 0, n3, n4, 1, 1, n7, 1, 0]/
+      (4 - 2*d + n3 + 2*n4 + 2*n7), 
+   j[HQET4, (n1_)?Positive, (n2_)?Positive, (n3_)?Positive, (n4_)?Positive, 
+      (n5_)?Positive, (n6_)?Positive, (n7_)?Positive, (n8_)?Positive, 
+      (n9_)?NonPositive] /; n1 == 1 && n2 == 1 && n5 == 1 && n6 == 1 && 
+      n7 == 1 && n8 == 1 :> j[HQET4, 1, 1, n3, n4, 0, 1, 1, 2, n9]/
+      (6 - 2*d + n3 + 2*n4 + n9) - j[HQET4, 1, 1, n3, n4, 1, 1, 0, 2, n9]/
+      (6 - 2*d + n3 + 2*n4 + n9) - 
+     (n3*j[HQET4, 1, 1, 1 + n3, -1 + n4, 1, 1, 1, 1, n9])/
+      (6 - 2*d + n3 + 2*n4 + n9) + 
+     (n3*j[HQET4, 1, 1, 1 + n3, n4, 0, 1, 1, 1, n9])/
+      (6 - 2*d + n3 + 2*n4 + n9) + j[HQET4, 2, 0, n3, n4, 1, 1, 1, 1, n9]/
+      (6 - 2*d + n3 + 2*n4 + n9)}}]

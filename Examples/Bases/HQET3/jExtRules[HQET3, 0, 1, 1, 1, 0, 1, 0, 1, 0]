@@ -1,0 +1,5 @@
+j[HQET3, (n1_)?NonPositive, (n2_)?Positive, (n3_)?Positive, (n4_)?Positive, 
+  (n5_)?NonPositive, (n6_)?Positive, (n7_)?NonPositive, (n8_)?Positive, 
+  (n9_)?NonPositive] :> Expand[j[HQET1, n1, n3, n2, n4, n6, n5, n8, 0, n9]/
+   (j[HQET1, 0, 0, 0, -1, 0, 0, 0, 0, 0] + j[HQET1, 0, 0, 0, 0, 0, 0, 0, -1, 
+      0] + 2*j[HQET1, 0, 0, 0, 0, 0, 0, 0, 0, -1])^n7]

@@ -1,0 +1,3 @@
+{js[triangle, 0, 0, 1], js[triangle, 0, 1, 0], js[triangle, 1, 0, 0], 
+ js[triangle, 0, 1, 1], js[triangle, 1, 0, 1], js[triangle, 1, 1, 0], 
+ js[triangle, 1, 1, 1]}

@@ -1,0 +1,2 @@
+{{j[triangle, (n1_)?Positive, (n2_)?Positive, (n3_)?Positive] :> 
+   Expand[j[triangle, n1, n2, n3]]}}

@@ -1,0 +1,416 @@
+BasisDirectory[HQET3] = StringDrop[DirectoryName[$Input], -1]
+HQET3 /: BasisSectors[HQET3] := Get[StringJoin[BasisDirectory[HQET3], 
+    "/BasisSectors[HQET3]"]]
+HQET3 /: CurrentState[HQET3] := <|NewDsBasis -> True, GenerateIBP -> True, 
+   AnalyzeSectors -> True, FindSymmetries -> False|>
+HQET3 /: CutDs[HQET3] := {0, 0, 0, 0, 0, 0, 0, 0, 0}
+HQET3 /: Definitions[HQET3] := {Hold[MetricTensor[] === d, SetDim[d]], 
+   Hold[VecQ[l1], Declare[l1, Vector]], Hold[VecQ[l2], Declare[l2, Vector]], 
+   Hold[VecQ[l3], Declare[l3, Vector]], Hold[VecQ[v], Declare[v, Vector]], 
+   Hold[LiteRed`Private`ExpresionType[v] === LiteRed`Private`ExpresionType[
+      v], Declare[v, LiteRed`Private`ExpresionType[v]]], 
+   Hold[sp[v, v] === 1, sp[v, v] = 1]}
+HQET3 /: Ds[HQET3] := {1 - 2*sp[l1, v], 1 - 2*sp[l2, v], 1 - 2*sp[l3, v], 
+   -sp[-l1, -l1], -sp[l3, l3], -sp[-l1 + l3, -l1 + l3], 
+   -sp[-l1 + l2, -l1 + l2], -sp[-l2 + l3, -l2 + l3], sp[l1, l2]}
+HQET3 /: DsBasisQ[HQET3] := True
+HQET3 /: EMs[HQET3] := {v}
+HQET3 /: ExtMappedSectors[HQET3] := {js[HQET3, 0, 0, 1, 1, 0, 0, 1, 1, 0], 
+   js[HQET3, 0, 1, 0, 0, 1, 1, 1, 0, 0], js[HQET3, 0, 1, 0, 1, 0, 1, 0, 1, 
+    0], js[HQET3, 1, 0, 0, 0, 1, 0, 1, 1, 0], js[HQET3, 0, 0, 1, 1, 0, 1, 1, 
+    1, 0], js[HQET3, 0, 0, 1, 1, 1, 0, 1, 1, 0], js[HQET3, 0, 1, 0, 0, 1, 1, 
+    1, 1, 0], js[HQET3, 0, 1, 0, 1, 0, 1, 1, 1, 0], 
+   js[HQET3, 0, 1, 0, 1, 1, 0, 1, 1, 0], js[HQET3, 0, 1, 0, 1, 1, 1, 0, 1, 
+    0], js[HQET3, 0, 1, 0, 1, 1, 1, 1, 0, 0], js[HQET3, 0, 1, 1, 0, 1, 1, 1, 
+    0, 0], js[HQET3, 0, 1, 1, 1, 0, 0, 1, 1, 0], js[HQET3, 0, 1, 1, 1, 0, 1, 
+    0, 1, 0], js[HQET3, 0, 1, 1, 1, 0, 1, 1, 0, 0], 
+   js[HQET3, 0, 1, 1, 1, 1, 0, 1, 0, 0], js[HQET3, 1, 0, 0, 0, 1, 1, 1, 1, 
+    0], js[HQET3, 1, 0, 0, 1, 1, 0, 1, 1, 0], js[HQET3, 1, 0, 1, 0, 1, 0, 1, 
+    1, 0], js[HQET3, 1, 0, 1, 1, 0, 0, 1, 1, 0], js[HQET3, 1, 1, 0, 0, 1, 0, 
+    1, 1, 0], js[HQET3, 1, 1, 0, 0, 1, 1, 0, 1, 0], 
+   js[HQET3, 1, 1, 0, 0, 1, 1, 1, 0, 0], js[HQET3, 1, 1, 0, 1, 0, 1, 0, 1, 
+    0], js[HQET3, 1, 1, 0, 1, 1, 0, 0, 1, 0], js[HQET3, 0, 0, 1, 1, 1, 1, 1, 
+    1, 0], js[HQET3, 0, 1, 0, 1, 1, 1, 1, 1, 0], js[HQET3, 0, 1, 1, 0, 1, 1, 
+    1, 1, 0], js[HQET3, 0, 1, 1, 1, 0, 1, 1, 1, 0], 
+   js[HQET3, 0, 1, 1, 1, 1, 0, 1, 1, 0], js[HQET3, 0, 1, 1, 1, 1, 1, 0, 1, 
+    0], js[HQET3, 0, 1, 1, 1, 1, 1, 1, 0, 0], js[HQET3, 1, 0, 0, 1, 1, 1, 1, 
+    1, 0], js[HQET3, 1, 0, 1, 0, 1, 1, 1, 1, 0], js[HQET3, 1, 0, 1, 1, 0, 1, 
+    1, 1, 0], js[HQET3, 1, 0, 1, 1, 1, 0, 1, 1, 0], 
+   js[HQET3, 1, 1, 0, 0, 1, 1, 1, 1, 0], js[HQET3, 1, 1, 0, 1, 0, 1, 1, 1, 
+    0], js[HQET3, 1, 1, 0, 1, 1, 0, 1, 1, 0], js[HQET3, 1, 1, 0, 1, 1, 1, 0, 
+    1, 0], js[HQET3, 1, 1, 0, 1, 1, 1, 1, 0, 0], js[HQET3, 1, 1, 1, 0, 1, 0, 
+    1, 1, 0], js[HQET3, 1, 1, 1, 0, 1, 1, 0, 1, 0], 
+   js[HQET3, 1, 1, 1, 0, 1, 1, 1, 0, 0], js[HQET3, 1, 1, 1, 1, 0, 0, 1, 1, 
+    0], js[HQET3, 1, 1, 1, 1, 0, 1, 0, 1, 0], js[HQET3, 1, 1, 1, 1, 0, 1, 1, 
+    0, 0], js[HQET3, 1, 1, 1, 1, 1, 0, 0, 1, 0], js[HQET3, 1, 1, 1, 1, 1, 0, 
+    1, 0, 0], js[HQET3, 0, 1, 1, 1, 1, 1, 1, 1, 0], 
+   js[HQET3, 1, 1, 0, 1, 1, 1, 1, 1, 0], js[HQET3, 1, 1, 1, 1, 1, 0, 1, 1, 
+    0], js[HQET3, 1, 1, 1, 1, 1, 1, 0, 1, 0], js[HQET3, 1, 1, 1, 1, 1, 1, 1, 
+    0, 0]}
+HQET3 /: ExtSectorsMappings[HQET3] := 
+  {js[HQET3, 0, 0, 1, 1, 0, 0, 1, 1, 0] -> js[HQET1, 0, 0, 1, 1, 1, 0, 1, 0, 
+     0], js[HQET3, 0, 1, 0, 0, 1, 1, 1, 0, 0] -> js[HQET1, 0, 0, 1, 1, 1, 0, 
+     1, 0, 0], js[HQET3, 0, 1, 0, 1, 0, 1, 0, 1, 0] -> 
+    js[HQET1, 0, 0, 1, 1, 1, 0, 1, 0, 0], 
+   js[HQET3, 1, 0, 0, 0, 1, 0, 1, 1, 0] -> js[HQET1, 0, 0, 1, 1, 1, 0, 1, 0, 
+     0], js[HQET3, 0, 0, 1, 1, 0, 1, 1, 1, 0] -> js[HQET1, 0, 0, 1, 1, 1, 1, 
+     1, 0, 0], js[HQET3, 0, 0, 1, 1, 1, 0, 1, 1, 0] -> 
+    js[HQET1, 0, 0, 1, 1, 1, 0, 1, 1, 0], 
+   js[HQET3, 0, 1, 0, 0, 1, 1, 1, 1, 0] -> js[HQET1, 0, 0, 1, 1, 1, 1, 1, 0, 
+     0], js[HQET3, 0, 1, 0, 1, 0, 1, 1, 1, 0] -> js[HQET1, 0, 0, 1, 1, 1, 1, 
+     1, 0, 0], js[HQET3, 0, 1, 0, 1, 1, 0, 1, 1, 0] -> 
+    js[HQET1, 0, 1, 0, 1, 1, 0, 1, 1, 0], 
+   js[HQET3, 0, 1, 0, 1, 1, 1, 0, 1, 0] -> js[HQET1, 0, 0, 1, 1, 1, 1, 1, 0, 
+     0], js[HQET3, 0, 1, 0, 1, 1, 1, 1, 0, 0] -> js[HQET1, 0, 0, 1, 1, 1, 1, 
+     1, 0, 0], js[HQET3, 0, 1, 1, 0, 1, 1, 1, 0, 0] -> 
+    js[HQET1, 1, 0, 1, 0, 1, 0, 1, 1, 0], 
+   js[HQET3, 0, 1, 1, 1, 0, 0, 1, 1, 0] -> js[HQET1, 0, 1, 1, 1, 1, 0, 1, 0, 
+     0], js[HQET3, 0, 1, 1, 1, 0, 1, 0, 1, 0] -> js[HQET1, 0, 1, 1, 1, 1, 0, 
+     1, 0, 0], js[HQET3, 0, 1, 1, 1, 0, 1, 1, 0, 0] -> 
+    js[HQET1, 1, 0, 1, 0, 1, 1, 1, 0, 0], 
+   js[HQET3, 0, 1, 1, 1, 1, 0, 1, 0, 0] -> js[HQET1, 0, 1, 1, 1, 1, 0, 0, 1, 
+     0], js[HQET3, 1, 0, 0, 0, 1, 1, 1, 1, 0] -> js[HQET1, 0, 0, 1, 1, 1, 1, 
+     1, 0, 0], js[HQET3, 1, 0, 0, 1, 1, 0, 1, 1, 0] -> 
+    js[HQET1, 0, 0, 1, 1, 1, 0, 1, 1, 0], 
+   js[HQET3, 1, 0, 1, 0, 1, 0, 1, 1, 0] -> js[HQET1, 1, 0, 1, 0, 1, 0, 1, 1, 
+     0], js[HQET3, 1, 0, 1, 1, 0, 0, 1, 1, 0] -> js[HQET1, 1, 0, 1, 0, 1, 0, 
+     1, 1, 0], js[HQET3, 1, 1, 0, 0, 1, 0, 1, 1, 0] -> 
+    js[HQET1, 0, 1, 1, 1, 1, 0, 1, 0, 0], 
+   js[HQET3, 1, 1, 0, 0, 1, 1, 0, 1, 0] -> js[HQET1, 1, 0, 1, 0, 1, 1, 1, 0, 
+     0], js[HQET3, 1, 1, 0, 0, 1, 1, 1, 0, 0] -> js[HQET1, 0, 1, 1, 1, 1, 0, 
+     1, 0, 0], js[HQET3, 1, 1, 0, 1, 0, 1, 0, 1, 0] -> 
+    js[HQET1, 1, 0, 1, 0, 1, 0, 1, 1, 0], 
+   js[HQET3, 1, 1, 0, 1, 1, 0, 0, 1, 0] -> js[HQET1, 0, 1, 1, 1, 1, 0, 0, 1, 
+     0], js[HQET3, 0, 0, 1, 1, 1, 1, 1, 1, 0] -> js[HQET1, 0, 0, 1, 1, 1, 1, 
+     1, 1, 0], js[HQET3, 0, 1, 0, 1, 1, 1, 1, 1, 0] -> 
+    js[HQET2, 0, 1, 0, 1, 1, 1, 1, 1, 0], 
+   js[HQET3, 0, 1, 1, 0, 1, 1, 1, 1, 0] -> js[HQET2, 0, 1, 1, 1, 1, 1, 0, 1, 
+     0], js[HQET3, 0, 1, 1, 1, 0, 1, 1, 1, 0] -> js[HQET2, 0, 1, 1, 1, 1, 1, 
+     1, 0, 0], js[HQET3, 0, 1, 1, 1, 1, 0, 1, 1, 0] -> 
+    js[HQET1, 0, 1, 1, 1, 1, 0, 1, 1, 0], 
+   js[HQET3, 0, 1, 1, 1, 1, 1, 0, 1, 0] -> js[HQET1, 0, 1, 1, 1, 1, 1, 1, 0, 
+     0], js[HQET3, 0, 1, 1, 1, 1, 1, 1, 0, 0] -> js[HQET1, 1, 0, 1, 0, 1, 1, 
+     1, 1, 0], js[HQET3, 1, 0, 0, 1, 1, 1, 1, 1, 0] -> 
+    js[HQET1, 0, 0, 1, 1, 1, 1, 1, 1, 0], 
+   js[HQET3, 1, 0, 1, 0, 1, 1, 1, 1, 0] -> js[HQET2, 0, 1, 1, 1, 1, 1, 0, 1, 
+     0], js[HQET3, 1, 0, 1, 1, 0, 1, 1, 1, 0] -> js[HQET2, 0, 1, 1, 1, 1, 1, 
+     0, 1, 0], js[HQET3, 1, 0, 1, 1, 1, 0, 1, 1, 0] -> 
+    js[HQET1, 1, 0, 1, 1, 1, 0, 1, 1, 0], 
+   js[HQET3, 1, 1, 0, 0, 1, 1, 1, 1, 0] -> js[HQET2, 0, 1, 1, 1, 1, 1, 1, 0, 
+     0], js[HQET3, 1, 1, 0, 1, 0, 1, 1, 1, 0] -> js[HQET2, 0, 1, 1, 1, 1, 1, 
+     0, 1, 0], js[HQET3, 1, 1, 0, 1, 1, 0, 1, 1, 0] -> 
+    js[HQET1, 0, 1, 1, 1, 1, 0, 1, 1, 0], 
+   js[HQET3, 1, 1, 0, 1, 1, 1, 0, 1, 0] -> js[HQET1, 1, 0, 1, 0, 1, 1, 1, 1, 
+     0], js[HQET3, 1, 1, 0, 1, 1, 1, 1, 0, 0] -> js[HQET1, 0, 1, 1, 1, 1, 1, 
+     1, 0, 0], js[HQET3, 1, 1, 1, 0, 1, 0, 1, 1, 0] -> 
+    js[HQET1, 1, 1, 1, 0, 1, 0, 1, 1, 0], 
+   js[HQET3, 1, 1, 1, 0, 1, 1, 0, 1, 0] -> js[HQET1, 1, 1, 1, 0, 1, 1, 1, 0, 
+     0], js[HQET3, 1, 1, 1, 0, 1, 1, 1, 0, 0] -> js[HQET1, 1, 1, 1, 0, 1, 0, 
+     1, 1, 0], js[HQET3, 1, 1, 1, 1, 0, 0, 1, 1, 0] -> 
+    js[HQET1, 1, 1, 1, 0, 1, 0, 1, 1, 0], 
+   js[HQET3, 1, 1, 1, 1, 0, 1, 0, 1, 0] -> js[HQET1, 1, 1, 1, 0, 1, 0, 1, 1, 
+     0], js[HQET3, 1, 1, 1, 1, 0, 1, 1, 0, 0] -> js[HQET1, 1, 1, 1, 0, 1, 1, 
+     1, 0, 0], js[HQET3, 1, 1, 1, 1, 1, 0, 0, 1, 0] -> 
+    js[HQET1, 1, 1, 1, 0, 1, 1, 0, 1, 0], 
+   js[HQET3, 1, 1, 1, 1, 1, 0, 1, 0, 0] -> js[HQET1, 1, 1, 1, 0, 1, 1, 0, 1, 
+     0], js[HQET3, 0, 1, 1, 1, 1, 1, 1, 1, 0] -> js[HQET2, 0, 1, 1, 1, 1, 1, 
+     1, 1, 0], js[HQET3, 1, 1, 0, 1, 1, 1, 1, 1, 0] -> 
+    js[HQET2, 0, 1, 1, 1, 1, 1, 1, 1, 0], 
+   js[HQET3, 1, 1, 1, 1, 1, 0, 1, 1, 0] -> js[HQET1, 1, 1, 1, 1, 1, 0, 1, 1, 
+     0], js[HQET3, 1, 1, 1, 1, 1, 1, 0, 1, 0] -> js[HQET1, 1, 1, 1, 0, 1, 1, 
+     1, 1, 0], js[HQET3, 1, 1, 1, 1, 1, 1, 1, 0, 0] -> 
+    js[HQET1, 1, 1, 1, 0, 1, 1, 1, 1, 0]}
+HQET3 /: ExtUniqueSectors[HQET3] := {js[HQET3, 1, 0, 1, 1, 1, 1, 1, 1, 0], 
+   js[HQET3, 1, 1, 1, 0, 1, 1, 1, 1, 0], js[HQET3, 1, 1, 1, 1, 0, 1, 1, 1, 
+    0], js[HQET3, 1, 1, 1, 1, 1, 1, 1, 1, 0]}
+HQET3 /: IBP[HQET3] := Get[StringJoin[BasisDirectory[HQET3], "/IBP[HQET3]"]]
+HQET3 /: Information[HQET3] := (If[ValueQ[HQET3::usage], 
+    Information[HQET3, LongForm -> False]]; 
+   Print[Grid[Partition[Union[Replace[Replace[First /@ UpValues[HQET3] /. 
+          HoldPattern -> HoldForm, 
+         {HoldPattern[HoldForm[(LiteRed`Private`f$_)[HQET3, __]]] :> 
+           HoldForm[LiteRed`Private`f$[HQET3, "\[Ellipsis]"]]}, {1}], 
+        {HoldPattern[LiteRed`Private`x$:HoldForm[(LiteRed`Private`f$_)[HQET3, 
+              ___]]] :> Button[LiteRed`Private`x$, 
+           (SelectionMove[ButtonNotebook[], All, GeneratedCell]; 
+             NotebookDelete[]; Information[Evaluate[LiteRed`Private`x$[[1,
+                0]]], LongForm -> False]; Print[TableForm[Cases[UpValues[
+                  HQET3], HoldPattern[LiteRed`Private`a$_ :> 
+                    LiteRed`Private`b$_] /; MatchQ[LiteRed`Private`a$[[1,0]], 
+                   LiteRed`Private`x$[[1,0]]]] /. HoldPattern -> 
+                 HoldForm]]) & , Appearance -> "Frameless", 
+           BaseStyle -> "InformationLink"]}, {1}]], 5], 
+     DefaultBaseStyle -> "InfoGrid"]])
+HQET3 /: jExtRules[HQET3, 0, 0, 1, 1, 0, 0, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 0, 1, 1, 0, 0, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 0, 1, 1, 0, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 0, 1, 1, 0, 1, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 0, 1, 1, 1, 0, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 0, 1, 1, 1, 0, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 0, 1, 1, 1, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 0, 1, 1, 1, 1, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 1, 0, 0, 1, 1, 1, 0, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 1, 0, 0, 1, 1, 1, 0, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 1, 0, 0, 1, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 1, 0, 0, 1, 1, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 1, 0, 1, 0, 1, 0, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 1, 0, 1, 0, 1, 0, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 1, 0, 1, 0, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 1, 0, 1, 0, 1, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 1, 0, 1, 1, 0, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 1, 0, 1, 1, 0, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 1, 0, 1, 1, 1, 0, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 1, 0, 1, 1, 1, 0, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 1, 0, 1, 1, 1, 1, 0, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 1, 0, 1, 1, 1, 1, 0, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 1, 0, 1, 1, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 1, 0, 1, 1, 1, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 1, 1, 0, 1, 1, 1, 0, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 1, 1, 0, 1, 1, 1, 0, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 1, 1, 0, 1, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 1, 1, 0, 1, 1, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 1, 1, 1, 0, 0, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 1, 1, 1, 0, 0, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 1, 1, 1, 0, 1, 0, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 1, 1, 1, 0, 1, 0, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 1, 1, 1, 0, 1, 1, 0, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 1, 1, 1, 0, 1, 1, 0, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 1, 1, 1, 0, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 1, 1, 1, 0, 1, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 1, 1, 1, 1, 0, 1, 0, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 1, 1, 1, 1, 0, 1, 0, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 1, 1, 1, 1, 0, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 1, 1, 1, 1, 0, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 1, 1, 1, 1, 1, 0, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 1, 1, 1, 1, 1, 0, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 1, 1, 1, 1, 1, 1, 0, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 1, 1, 1, 1, 1, 1, 0, 0]"]]
+HQET3 /: jExtRules[HQET3, 0, 1, 1, 1, 1, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 0, 1, 1, 1, 1, 1, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 0, 0, 0, 1, 0, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 0, 0, 0, 1, 0, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 0, 0, 0, 1, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 0, 0, 0, 1, 1, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 0, 0, 1, 1, 0, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 0, 0, 1, 1, 0, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 0, 0, 1, 1, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 0, 0, 1, 1, 1, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 0, 1, 0, 1, 0, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 0, 1, 0, 1, 0, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 0, 1, 0, 1, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 0, 1, 0, 1, 1, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 0, 1, 1, 0, 0, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 0, 1, 1, 0, 0, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 0, 1, 1, 0, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 0, 1, 1, 0, 1, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 0, 1, 1, 1, 0, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 0, 1, 1, 1, 0, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 0, 0, 1, 0, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 0, 0, 1, 0, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 0, 0, 1, 1, 0, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 0, 0, 1, 1, 0, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 0, 0, 1, 1, 1, 0, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 0, 0, 1, 1, 1, 0, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 0, 0, 1, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 0, 0, 1, 1, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 0, 1, 0, 1, 0, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 0, 1, 0, 1, 0, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 0, 1, 0, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 0, 1, 0, 1, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 0, 1, 1, 0, 0, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 0, 1, 1, 0, 0, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 0, 1, 1, 0, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 0, 1, 1, 0, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 0, 1, 1, 1, 0, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 0, 1, 1, 1, 0, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 0, 1, 1, 1, 1, 0, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 0, 1, 1, 1, 1, 0, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 0, 1, 1, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 0, 1, 1, 1, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 1, 0, 1, 0, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 1, 0, 1, 0, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 1, 0, 1, 1, 0, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 1, 0, 1, 1, 0, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 1, 0, 1, 1, 1, 0, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 1, 0, 1, 1, 1, 0, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 1, 1, 0, 0, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 1, 1, 0, 0, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 1, 1, 0, 1, 0, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 1, 1, 0, 1, 0, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 1, 1, 0, 1, 1, 0, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 1, 1, 0, 1, 1, 0, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 1, 1, 1, 0, 0, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 1, 1, 1, 0, 0, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 1, 1, 1, 0, 1, 0, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 1, 1, 1, 0, 1, 0, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 1, 1, 1, 0, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 1, 1, 1, 0, 1, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 1, 1, 1, 1, 0, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 1, 1, 1, 1, 0, 1, 0]"]]
+HQET3 /: jExtRules[HQET3, 1, 1, 1, 1, 1, 1, 1, 0, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jExtRules[HQET3, 1, 1, 1, 1, 1, 1, 1, 0, 0]"]]
+HQET3 /: jGraph[HQET3] := {js[HQET3, 1, 1, 1, 1, 1, 1, 1, 1, 0] -> 
+    {{1 -> 2, 1}, {2 -> 3, 1}, {3 -> 4, 1}, {1 -> 5, 0}, {4 -> 5, 0}, 
+     {5 -> 6, 0}, {6 -> 2, 0}, {6 -> 3, 0}, {-1 -> 1, 1}, {4 -> -4, 1}}}
+HQET3 /: jRules[HQET3, 1, 0, 1, 1, 1, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jRules[HQET3, 1, 0, 1, 1, 1, 1, 1, 1, 0]"]]
+HQET3 /: jRules[HQET3, 1, 1, 1, 0, 1, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jRules[HQET3, 1, 1, 1, 0, 1, 1, 1, 1, 0]"]]
+HQET3 /: jRules[HQET3, 1, 1, 1, 1, 0, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jRules[HQET3, 1, 1, 1, 1, 0, 1, 1, 1, 0]"]]
+HQET3 /: jRules[HQET3, 1, 1, 1, 1, 1, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jRules[HQET3, 1, 1, 1, 1, 1, 1, 1, 1, 0]"]]
+HQET3 /: jsOrder[HQET3] := {"np", "cp", "-ds", "-ns"}
+HQET3 /: jsOrder[HQET3, 1, 0, 1, 1, 1, 1, 1, 1, 0] := 
+  {{1, -1, 1, 1, 1, 1, 1, 1, -1}, {0, -1, 0, 0, 0, 0, 0, 0, -1}, 
+   {-1, 0, 0, 0, 0, 0, 0, 0, 0}, {0, 0, -1, 0, 0, 0, 0, 0, 0}, 
+   {0, 0, 0, -1, 0, 0, 0, 0, 0}, {0, 0, 0, 0, -1, 0, 0, 0, 0}, 
+   {0, 0, 0, 0, 0, -1, 0, 0, 0}, {0, 0, 0, 0, 0, 0, -1, 0, 0}, 
+   {0, 1, 0, 0, 0, 0, 0, 0, 0}}
+HQET3 /: jsOrder[HQET3, 1, 1, 1, 0, 1, 1, 1, 1, 0] := 
+  {{1, 1, 1, -1, 1, 1, 1, 1, -1}, {0, 0, 0, -1, 0, 0, 0, 0, -1}, 
+   {-1, 0, 0, 0, 0, 0, 0, 0, 0}, {0, -1, 0, 0, 0, 0, 0, 0, 0}, 
+   {0, 0, -1, 0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, -1, 0, 0, 0, 0}, 
+   {0, 0, 0, 0, 0, -1, 0, 0, 0}, {0, 0, 0, 0, 0, 0, -1, 0, 0}, 
+   {0, 0, 0, 1, 0, 0, 0, 0, 0}}
+HQET3 /: jsOrder[HQET3, 1, 1, 1, 1, 1, 1, 1, 1, 0] := 
+  {{1, 1, 1, 1, 1, 1, 1, 1, -1}, {0, 0, 0, 0, 0, 0, 0, 0, -1}, 
+   {-1, 0, 0, 0, 0, 0, 0, 0, 0}, {0, -1, 0, 0, 0, 0, 0, 0, 0}, 
+   {0, 0, -1, 0, 0, 0, 0, 0, 0}, {0, 0, 0, -1, 0, 0, 0, 0, 0}, 
+   {0, 0, 0, 0, -1, 0, 0, 0, 0}, {0, 0, 0, 0, 0, -1, 0, 0, 0}, 
+   {0, 0, 0, 0, 0, 0, -1, 0, 0}}
+HQET3 /: jSymmetries[HQET3, 1, 0, 1, 1, 1, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jSymmetries[HQET3, 1, 0, 1, 1, 1, 1, 1, 1, 0]"]]
+HQET3 /: jSymmetries[HQET3, 1, 1, 1, 0, 1, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jSymmetries[HQET3, 1, 1, 1, 0, 1, 1, 1, 1, 0]"]]
+HQET3 /: jSymmetries[HQET3, 1, 1, 1, 1, 1, 1, 1, 1, 0] := 
+  Get[StringJoin[BasisDirectory[HQET3], 
+    "/jSymmetries[HQET3, 1, 1, 1, 1, 1, 1, 1, 1, 0]"]]
+HQET3 /: LI[HQET3] := Get[StringJoin[BasisDirectory[HQET3], "/LI[HQET3]"]]
+HQET3 /: LMs[HQET3] := {l1, l2, l3}
+HQET3 /: MappedSectors[HQET3] := Get[StringJoin[BasisDirectory[HQET3], 
+    "/MappedSectors[HQET3]"]]
+HQET3 /: MIs[HQET3] := Get[StringJoin[BasisDirectory[HQET3], "/MIs[HQET3]"]]
+HQET3 /: NDs[HQET3] := 9
+HQET3 /: NonZeroSectors[HQET3] := Get[StringJoin[BasisDirectory[HQET3], 
+    "/NonZeroSectors[HQET3]"]]
+HQET3 /: Parameters[HQET3] := {d}
+HQET3 /: PowerShifts[HQET3] := {0, 0, 0, 0, 0, 0, 0, 0, 0}
+HQET3 /: SectorsMappings[HQET3] := {js[HQET3, 1, 1, 1, 1, 0, 1, 1, 1, 0] -> 
+    js[HQET3, 1, 1, 1, 0, 1, 1, 1, 1, 0], 
+   js[HQET3, 1, 1, 0, 0, 1, 1, 0, 1, 0] -> js[HQET3, 0, 1, 1, 1, 0, 1, 1, 0, 
+     0], js[HQET3, 1, 1, 0, 1, 1, 0, 0, 1, 0] -> js[HQET3, 0, 1, 1, 1, 1, 0, 
+     1, 0, 0], js[HQET3, 0, 1, 0, 0, 1, 1, 1, 0, 0] -> 
+    js[HQET3, 0, 0, 1, 1, 0, 0, 1, 1, 0], 
+   js[HQET3, 0, 1, 0, 1, 0, 1, 0, 1, 0] -> js[HQET3, 0, 0, 1, 1, 0, 0, 1, 1, 
+     0], js[HQET3, 1, 0, 0, 0, 1, 0, 1, 1, 0] -> js[HQET3, 0, 0, 1, 1, 0, 0, 
+     1, 1, 0]}
+HQET3 /: SectorsPattern[HQET3] := {___, 0}
+HQET3 /: SimpleSectors[HQET3] := Get[StringJoin[BasisDirectory[HQET3], 
+    "/SimpleSectors[HQET3]"]]
+HQET3 /: SPs[HQET3] := {sp[l1, l1], sp[l1, l2], sp[l1, l3], sp[l1, v], 
+   sp[l2, l2], sp[l2, l3], sp[l2, v], sp[l3, l3], sp[l3, v]}
+HQET3 /: SR[HQET3] := Get[StringJoin[BasisDirectory[HQET3], "/SR[HQET3]"]]
+HQET3 /: Toj[HQET3] := {sp[l1, l1] -> -j[HQET3, 0, 0, 0, -1, 0, 0, 0, 0, 0], 
+   sp[l1, l2] -> j[HQET3, 0, 0, 0, 0, 0, 0, 0, 0, -1], 
+   sp[l1, l3] -> (-j[HQET3, 0, 0, 0, -1, 0, 0, 0, 0, 0] - 
+      j[HQET3, 0, 0, 0, 0, -1, 0, 0, 0, 0] + j[HQET3, 0, 0, 0, 0, 0, -1, 0, 
+       0, 0])/2, sp[l1, v] -> (1 - j[HQET3, -1, 0, 0, 0, 0, 0, 0, 0, 0])/2, 
+   sp[l2, l2] -> j[HQET3, 0, 0, 0, -1, 0, 0, 0, 0, 0] - 
+     j[HQET3, 0, 0, 0, 0, 0, 0, -1, 0, 0] + 
+     2*j[HQET3, 0, 0, 0, 0, 0, 0, 0, 0, -1], 
+   sp[l2, l3] -> (j[HQET3, 0, 0, 0, -1, 0, 0, 0, 0, 0] - 
+      j[HQET3, 0, 0, 0, 0, -1, 0, 0, 0, 0] - j[HQET3, 0, 0, 0, 0, 0, 0, -1, 
+       0, 0] + j[HQET3, 0, 0, 0, 0, 0, 0, 0, -1, 0] + 
+      2*j[HQET3, 0, 0, 0, 0, 0, 0, 0, 0, -1])/2, 
+   sp[l2, v] -> (1 - j[HQET3, 0, -1, 0, 0, 0, 0, 0, 0, 0])/2, 
+   sp[l3, l3] -> -j[HQET3, 0, 0, 0, 0, -1, 0, 0, 0, 0], 
+   sp[l3, v] -> (1 - j[HQET3, 0, 0, -1, 0, 0, 0, 0, 0, 0])/2}
+HQET3 /: UniqueSectors[HQET3] := Get[StringJoin[BasisDirectory[HQET3], 
+    "/UniqueSectors[HQET3]"]]
+HQET3 /: ZerojRule[HQET3] := LiteRed`Private`jjj:j[HQET3, __] :> 
+   0 /; Module[{LiteRed`Private`jjs = 
+       Rest[List @@ jSector[LiteRed`Private`jjj]]}, 
+     Or @@ (BitOr[LiteRed`Private`jjs, #1] === #1 & ) /@ 
+       {{1, 1, 1, 1, 1, 1, 0, 0, 0}, {0, 0, 0, 1, 1, 1, 1, 1, 0}, 
+        {1, 1, 1, 1, 0, 0, 1, 0, 0}, {0, 0, 1, 0, 1, 1, 1, 1, 0}, 
+        {1, 1, 1, 1, 0, 0, 0, 1, 0}, {1, 1, 1, 0, 1, 0, 1, 0, 0}, 
+        {1, 1, 1, 0, 1, 0, 0, 1, 0}, {1, 1, 1, 0, 0, 1, 1, 1, 0}, 
+        {1, 1, 0, 1, 1, 0, 1, 0, 0}, {1, 1, 0, 1, 0, 1, 1, 0, 0}, 
+        {0, 1, 1, 0, 1, 0, 1, 1, 0}, {1, 1, 0, 1, 0, 0, 1, 1, 0}, 
+        {0, 1, 1, 0, 1, 1, 0, 1, 0}, {1, 0, 1, 1, 1, 1, 1, 0, 0}, 
+        {1, 0, 1, 1, 1, 1, 0, 1, 0}, {0, 1, 1, 1, 1, 0, 0, 1, 0}, 
+        {1, 0, 0, 1, 0, 1, 1, 1, 0}}]
+HQET3 /: ZeroSectors[HQET3] := Get[StringJoin[BasisDirectory[HQET3], 
+    "/ZeroSectors[HQET3]"]]
+HQET3 /: ExtSectorsMappings[HQET3, LiteRed`Private`ns$:(0 | 1)..] := 
+  Cases[ExtSectorsMappings[HQET3], HoldPattern[
+    js[HQET3, LiteRed`Private`ns$] -> _]]
+HQET3 /: SectorsMappings[HQET3, LiteRed`Private`ns$:(0 | 1)..] := 
+  Cases[SectorsMappings[HQET3], HoldPattern[js[HQET3, LiteRed`Private`ns$] -> 
+     _]]
+HQET3::usage = "3-loop basis with 1 external momenta.\nUse Information[HQET3] \
+to get basis summary.\nThis string can be redefined by setting \
+HQET3::usage=\"\[Ellipsis]\""; Information[HQET3, LongForm -> False]; 
+LiteRed`Private`CheckDefs[HQET3]
+BasisDirectory[HQET3]

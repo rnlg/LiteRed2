@@ -1,0 +1,3 @@
+{j[HQET1, (n1_)?Positive, (n2_)?Positive, (n3_)?NonPositive, (n4_)?Positive, 
+   (n5_)?Positive, (n6_)?Positive, (n7_)?Positive, (n8_)?Positive, 
+   (n9_)?NonPositive] :> Expand[j[HQET1, n3, n2, n1, n8, n7, n6, n5, n4, n9]]}

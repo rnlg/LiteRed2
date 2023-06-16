@@ -677,11 +677,6 @@ ex=Plus@@(((j[b,##]&@@Subtract@@Partition[#1,Length@ds]) *#2)&@@@CoefficientRule
 ex]
 
 
-PFSuggestBases::usage="PFSuggestBases[\!\(\*
-StyleBox[\"dsset\", \"TI\"]\)] suggests set of bases to cover the \!\(\*
-StyleBox[\"dsset\", \"TI\"]\). ";
-
-
 NewDsBasis::usage="NewDsBasis[\!\(\*
 StyleBox[\"basis\", \"TI\"]\),\*
 StyleBox[\(\!\(\*
@@ -788,12 +783,12 @@ ns=append[m,IdentityMatrix[Length[sps]]] . sps;
 If[TrueQ[!OptionValue[Append]],Message[NewDsBasis::nums,ns,Length@ns]; Abort[]];
 dens=Join[dens,ns];ddens=Join[ddens,ns];
 dim=Length@sps;
-LiteRedPrint["Irreducible numerator(s) appended: ",Sequence@@Riffle[ns,","],".\nUsing {___, "<>StringTake[ToString[ConstantArray[0,ns]],{2,-2}]<>"} as a pattern for AnalyzeSectors."];
+LiteRedPrint["Irreducible numerator(s) appended: ",Sequence@@Riffle[ns,","],".\nUsing {___, "<>StringTake[ToString[ConstantArray[0,Length@ns]],{2,-2}]<>"} as a pattern for AnalyzeSectors."];
 ];(*/add numerators*)
 ps=PadRight[ps/.{None->ConstantArray[0,dim]},dim];
-pars=Variables[{Cases[Variables[ddens],_?(FreeQ[#,Alternatives@@lms]&)], Outer[sp, ems, ems],{d},ps}];
-If[Not[MatchQ[ps,{Except[0]...,0...}]&&MatchQ[Take[ps,-ns],{0...}]],Message[NewDsBasis::ps];Abort[]];
-SectorsPattern[nm]^=Replace[SectorsPattern[nm],Automatic->{___,Sequence@@ConstantArray[0,ns]}];
+pars=Join[Complement[Variables[{Cases[Variables[ddens],_?(FreeQ[#,Alternatives@@lms]&)], Outer[sp, ems, ems],ps}],Variables[{d}]],Variables[{d}]];
+(*If[Not[MatchQ[ps,{Except[0]...,0...}]&&MatchQ[Take[ps,-ns],{0...}]],Message[NewDsBasis::ps];Abort[]];*)
+SectorsPattern[nm]^=Replace[SectorsPattern[nm],Automatic->{___,Sequence@@ConstantArray[0,Length@ns]}];
 (*If[dim != Length[sps] || Det[Coefficient[ddens, #] & /@ sps] == 0,Message[NewDsBasis::notb];Abort[]];*)
 {toj}=Solve[MapIndexed[#1 == (j[nm, ##] & @@ (-IntegerDigits[2^(dim - First@#2), 2, dim])) &,ddens], sps];
 nm /: Ds[nm] = dens;
@@ -2122,7 +2117,7 @@ SolvejSector::dim="Please, set dimension to be a symbol. Use SetDim[\[Ellipsis]]
 
 SolvejSector[nm_Symbol,opts:OptionsPattern[]]:=
 Module[{res,us=UniqueSectors[nm],drop},
-LiteRedPrint[Style["About to solve "<>ToString[Length[us]]<>" uniques sectors of "<>ToString[nm]<>" basis.",Bold]];
+LiteRedPrint[Style["About to solve "<>ToString[Length[us]]<>" unique sectors of "<>ToString[nm]<>" basis.",Bold]];
 drop=Replace[{OptionValue[First],OptionValue[After]},{
 {Automatic,js1_js}:>Replace[Position[us,js1,{1},1],{{{n_}}:>n,{}->-1}],
 {js1_js,Automatic}:>Replace[Position[us,js1,{1},1],{{{n_}}:>n-1,{}->-1}],
@@ -2254,8 +2249,10 @@ noRules=Rest@noRules;(*dbg=noRules;*)
 inds=Complement[indices,First/@First@cases];
 numeric=inds==={};
 If[Length@inds<=level,Break[]];
-vars=Join[inds,parameters];(*Join[inds,parameters](*old*)*)
-
+(*ordering inds, then parameters is critical 
+to ensure correct work of IBPSelect and WhenBad*)
+vars=Join[inds,parameters];
+(*vars=Join[parameters,inds];*)(*dangerous*)
 clean[dbase,vars];
 
 indicspent=Round[AbsoluteTime[]-indicstime];
@@ -2305,8 +2302,8 @@ jRules1=(#/.MapThread[#1->Expand[2#1-#2]&,{indices[[pos]],Rest[List@@First[#]][[
 (*Select specific case*)
 {case}=Select[cases,Simplify[And@@Thread[indices==Rest[List@@jRules1[[1]]]]/.#]&,1];
 (*Patternize the left sides of the rules and form a list of rules for the integrals to consider later*)
-{jRules1,{{rules2}}}=Reap[(*Modified 01.12.2016*)
-(j[nm,##]&@@indices/.ptrnrule)/;Evaluate[RulesToCondition[{case}]&&Not[Sow[whenBad[#[[2]]]]]]:>Evaluate[If[Head[#[[2]]]===List,{collect[#[[2,1]]],#[[2,2]]},collect[#[[2]]]]](*\[LongLeftArrow] this should also work if the second element is a pair*)(*/Modified 01.12.2016*)&@jRules1]
+{jRules1,{{rules2}}}=(*Modified 10.06.2023*)Reap[(*Modified 01.12.2016*)
+(j[nm,##]&@@indices/.ptrnrule)/;Evaluate[RulesToCondition[{case}]&&Not[Sow[whenBad[#[[2]]]]]]:>Evaluate[#[[2]]](*\[LongLeftArrow] this should also work if the second element is a pair*)(*/Modified 01.12.2016*)&@jRules1](*/Modified 10.06.2023*)
 ,"Constructing rule...",1];
 (*If[!FreeQ[rules2,Power[_,Except[_Integer]]],dbg1=jRules1;Abort[]];*)
 If[rules2=!=True,(*Found the rule!*)
@@ -2384,7 +2381,7 @@ If[reserved,DeleteFile[disksave<>"/"<>file]];Abort[]]]
 
 (*WhenBad*)WhenBad[expr_,indices_,corner_,parameters_]:=Module[{jl=(*Added 27.11.2019*)CollectjList[expr](*/Added 27.11.2019*),dconds,nconds,pars,p,res},
 pars=Replace[parameters,{}->{p}];(*work around for CoefficientRules[expr,{}] to work*)
-dconds=LogicalExpand[Or@@(And@@Thread[0==(Last/@CoefficientRules[#,pars])(*(*Deleted 05.03.2018*)Flatten[{CoefficientList[#,parameters]}](*/Deleted 05.03.2018*)*)]&/@Union@@((First/@FactorList[#])&/@Denominator/@Last/@jl))];nconds={#2,SmartReduce[Or@@Thread[Pick[Rest[List@@#1],corner,0]>=1],indices,corner]}&@@@jl;If[MemberQ[nconds,{_,True}],Return[True]];nconds=Or@@Flatten@Cases[nconds,{b_,a:Except[False]}:>Cases[Replace[{a},Or->Sequence,{2},Heads->True],x_/;0=!=Expand[Numerator[b]/.ToRules[x]]]];(*LogicalExpand@*)res=SmartReduce[LogicalExpand[dconds||nconds],indices,corner];
+dconds=LogicalExpand[Or@@(And@@Thread[0==(Last/@CoefficientRules[#,pars])(*(*Deleted 05.03.2018*)Flatten[{CoefficientList[#,parameters]}](*/Deleted 05.03.2018*)*)]&/@Union@@((First/@FactorList[#])&/@Denominator/@Last/@jl))];nconds={#2,SmartReduce[Or@@Thread[Pick[Rest[List@@#1],corner,0]>=1],indices,corner]}&@@@jl;If[MemberQ[nconds,{_,True}],Return[True]];nconds=Or@@Flatten@Cases[nconds,{b_,a:Except[False]}:>Cases[Replace[{a},Or->Sequence,{2},Heads->True],x_/;0=!=(*(*Deleted 10.06.2023*)Expand@(*/Deleted 10.06.2023*)*)(Numerator[b]/.ToRules[x])]];(*LogicalExpand@*)res=SmartReduce[LogicalExpand[dconds||nconds],indices,corner];
 (*Added 23.09.2022*)If[!FreeQ[res,Power[_,Except[_Integer]]],True,res](*/Added 23.09.2022*)(*Had to add this as Reduce sometimes returns square roots*)
 ];(*/WhenBad*)
 
@@ -3136,9 +3133,6 @@ FindSymmetries::opt="Something wrong in option `1`. Ignoring it.";
 FindSymmetries::ems="Option EMs\[Rule]True probably resulted in continuous symmetries. Try to replace it with EMs\[Rule]False. Aborting...";
 
 
-debugFindSymmetries1=0;debugFindSymmetries2=0;
-
-
 FindSymmetries[nm_,OptionsPattern[]]:=Module[
 {ps,shiftcompQ,ss,nzs,nzs0,euso,
 x,xs,xs1,y,fp,inds,
@@ -3808,10 +3802,16 @@ StyleBox[\"expr\", \"TI\"]\) applying rules found by FindSymmetries and SolvejSe
 (*DWeight::usage="DWeight\[Rule]n  is an option for IBPReduce which determines the extra priority points for each denominator.";*)
 
 
-Options[FermatIBPReduce]={Run->True};
+Options[FermatIBPReduce]={
+Run->True,
+Direction->Backward,(*Backward: all previous in current; Forward: current in all subsequent*)
+Save->Automatic,(*whether to save all found rules. Automatic means Not[OptionValue[Run]]*)
+In->Automatic,Out->Automatic,
+Share->1000(*Determines the time in milliseconds after which the garbage collection in Fermat is done*)
+};
 
 
-FermatIBPReduce[ex_,OptionsPattern[]]:=Module[{mis,jvars,dir,nrt,nr,k=1,prevdir=Directory[],j2n,jsecs,jvs,rules,matr,vrules,program,fermat,reap,resrules={},res,ex1},
+FermatIBPReduce[ex_,OptionsPattern[]]:=Module[{mis,jvars,jvarsstr,l,dir,nrt,nr=0,k=1,prevdir=Directory[],j2n,jsecs,jvs,rules,matr,vrules,program,fermat,reap,resrules={},res,ex1,save},
 While[FileExistsQ[dir="IBPReduction"<>ToString[k]],k++];
 CreateDirectory[dir];
 IBPSelect[ex,dir];
@@ -3822,16 +3822,24 @@ ex1=First@reap[{ex}];
 jvars=Join[First/@resrules,Reverse@Get[dir<>"/jVars"]];
 j2n=Dispatch[Thread[jvars->Range[Length[jvars]]]];
 jsecs=Sort[DeleteDuplicates[Flatten[Last/@Get[dir<>"/jsDependencies"]]],Less];
-Monitor[rules=Join[SortBy[Flatten[Map[Last[Get[dir<>"/"<>ToString[#]]]&,jsecs]],jComplexity@*First],resrules],"Getting rules from files..."];
+Monitor[rules=Join[SortBy[Flatten[Map[Last[Get[dir<>"/"<>ToString[#]]]&,jsecs]],jComplexity@*First],resrules];DeleteDirectory[dir,DeleteContents->True],"Getting rules from files..."];
 nrt=Length[rules];
-Monitor[rules=Flatten[MapIndexed[Function[{rule,i},jvs=Cases[rule,_j,-1];Thread[(Append[i,#]&/@jvs)->Coefficient[-Subtract@@rule,jvs]]],rules]/.j2n];,"Constructing sparse matrix..."];
-DeleteDirectory[dir,DeleteContents->True];
-vrules=Thread[#->Table[Unique["v"],{Length[#]}]]&[Variables[Last/@rules]];
-matr=SparseArray[rules/.vrules];debugmatr=matr;
-nr=0;
-program=ReadString[$LiteRedHomeDirectory<>"FermatCode/ibpreduce"]<>"\n"<>StringRiffle["&(J="<>ToString[Last@#]<>");"&/@vrules,"\n"]<>"\n"<>Fermatica`Private`smat2str[matr,"table"]<>"\n&(S='<<out>>');\nIBPred([table]);\n&(S=@);";
-Monitor[res=Fermatica`FermatSession[program,nr,Which[StringMatchQ[#2,"* rows reduced."],ToExpression[StringDrop[#2,-14]],StringMatchQ[#2,"* debug"],Print[#2];#1,True,#1]&,Run->OptionValue[Run]],Overlay[{ProgressIndicator[nr,{0,nrt}],ToString[nr]<>"/"<>ToString[nrt]},Alignment->Center]];
-If[TrueQ[OptionValue[Run]],res=ex1/.ToExpression[StringReplace[res,"j("~~a:Except[")"]..~~")":>ToString[jvars[[ToExpression[a]]]]]]/.(Reverse/@vrules)];
+vrules=Thread[#->Table[Unique["v"],{Length[#]}]]&[Complement[Variables[Last/@rules],jvars]];
+Monitor[
+matr="Array mat["<>ToString[nrt]<>","<>ToString[Length[jvars]]<>"] Sparse;\n[mat] := [ "<>StringRiffle[MapIndexed[Function[{rule,i},jvs=DeleteDuplicates@Cases[rule,_j,-1];StringReplace[ToString[Join[i,SortBy[List@@@Thread[(jvs/.j2n)->Coefficient[-Subtract@@rule,jvs]](*Transpose[{jvs/.j2n,Coefficient[-Subtract@@rule,jvs]/.vrules}]*),First]]/.vrules,InputForm],{"{"->"[ ","}"->"] "}]],rules],"\n"]<>"];","Constructing sparse matrix..."];
+(*WriteString["debug2",matr];*)
+jvarsstr=StringReplace[ToString[#]," "->""]&/@jvars;
+l=Max[StringLength/@jvarsstr];
+jvarsstr=StringPadLeft[#,l]&/@jvarsstr;
+save=If[Replace[OptionValue[Save],Automatic->Not[OptionValue[Run]]],1,nrt-Length[resrules]+1];
+program=StringRiffle[Prepend[MapIndexed["[jvars["<>ToString[First[#2]]<>"~"<>ToString[First[#2]]<>"]]:='"<>#<>"';"&,jvarsstr],"Array jvars["<>ToString[Length[jvarsstr]]<>","<>ToString[l]<>"];"],"\n"];
+program=program<>"\n"<>StringReplace[ReadString[$LiteRedHomeDirectory<>"FermatCode/ibpreduce."<>ToString[OptionValue[Direction]]],{"<<gctime>>"->ToString[OptionValue[Share]],"<<save>>"->ToString[save]}]<>"\n"<>StringRiffle["&(J="<>ToString[Last@#]<>");"&/@vrules,"\n"]<>"\n"<>matr<>"\n&(S='<<out>>');\n!!(&o,'{');\nIBPReduce;\n!!(&o,',');\n!!(&o,'{"<>StringRiffle[ToString[#2]<>"->"<>ToString[FullForm[#1]]&@@@vrules,", "]<>"}');\n!!(&o,'}');&(S=@);";
+Monitor[res=Fermatica`FermatSession[program,nr,Which[StringMatchQ[#2,"row * is reduced."],ToExpression[StringReplace[#2,LetterCharacter|":"|"["|"."|"]"->""]],StringMatchQ[#2,"* debug"],Print[#2];#1,True,#1]&,Run->OptionValue[Run],In->OptionValue[In],Out->OptionValue[Out]],Overlay[{ProgressIndicator[nr,{0,nrt}],ToString[nr]<>"/"<>ToString[nrt]},Alignment->Center]];
+If[TrueQ[OptionValue[Run]],
+res=Fold[ReplaceAll,ex1,ToExpression[res]],
+Print["Run fermat and issue\n    &(R='"<>res[[1]]<>"');\ncommand. The result will be in "<>res[[2]]<>" file.\nIt can be used with\n    Fold[ReplaceAll,res,Get[\""<>res[[2]]<>"\"]]\nwhere res is the output of FermatIBPReduce."];
+res=ex1;
+];
 Return[res]
 ]
 
@@ -4312,7 +4320,7 @@ The loop integration measure is chosen as \!\(\*SuperscriptBox[\(d\), \(d\)]\)l/
 
 LoweringDRR[nm_Symbol,inds__]:=Module[{lms=LMs@nm,l,ems=EMs@nm,e,v,d=MetricTensor[]},
 l=Length@lms;e=Length@ems;
-v=If[e==0,1,Det[Outer[sp,EMs@nm,EMs@nm]]];
+v=If[e==0,1,Det[Outer[sp,ems,ems]]];
 2^l/(v Pochhammer[d-e-l+1,l])*Expand[j[nm,inds]*(Det[Outer[sp,Join[lms,ems],Join[lms,ems]]]/.Toj[nm])]
 ]
 
@@ -4415,14 +4423,17 @@ MakeDSystem::usage="MakeDSystem[j_,toj_:{},x_] constructs matrix M in the differ
 MakeDSystem::err="Forgotten tomis? The derivative is not expressed via `1`.";
 
 
-MakeDSystem[mis:{__j},x_]:=MakeDSystem[{mis,{}},x]
+Options[MakeDSystem]={Fermatica`UseFermat->False};
 
 
-MakeDSystem[{mis_List,tomis_List:{}},x_]:=Module[{eqs,Mi},
+MakeDSystem[mis:{__j},x_,opts:OptionsPattern[]]:=MakeDSystem[{mis,{}},x,opts]
+
+
+MakeDSystem[{mis_List,tomis_List:{}},x_,OptionsPattern[]]:=Module[{eqs,Mi},
 If[Head[x]===List,
-eqs=IBPReduce[Dinv[mis,#]&/@x]/.tomis;
+eqs=IBPReduce[Dinv[mis,#]&/@x,Fermatica`UseFermat->OptionValue[Fermatica`UseFermat]]/.tomis;
 Mi=Outer[Coefficient,#,mis]&/@eqs,
-eqs=IBPReduce[Dinv[mis,x]]/.tomis;
+eqs=IBPReduce[Dinv[mis,x],Fermatica`UseFermat->OptionValue[Fermatica`UseFermat]]/.tomis;
 Mi=Outer[Coefficient,eqs,mis]];
 If[!MatchQ[Flatten@Collectj[eqs-Mi . mis,Factor],{0..}],Message[MakeDSystem::err,mis]];
 Mi
@@ -5217,13 +5228,14 @@ res
 
 AttachGraph::usage="AttachGraph[js[\[Ellipsis]],{{1\[Rule]2,\"\"},{2\[Rule]3,\"M\"},\[Ellipsis]}] attaches the graph to some sector. This attachment determines also the \
 graphs of the subsectors. The number of edges should be equal or greater than the number of 1s in the topology. \
-The external legs should be indicated in the end of the list as {0\[Rule]n,_}.";
+The external legs should have one vertex with negative index.";
 
 
-AttachGraph[js[nm_,x:(0|1)..],g_List]:=Module[{},
+AttachGraph[js[nm_,x:(0|1)..],g_List]:=Module[{gs},
 If[Length[{x}]=!=NDs[nm],Message[AttachGraph::usage];Abort[]];
 If[Count[{x},1]>Length[g],Message[AttachGraph::usage];Abort[]];
-nm/:jGraph[nm]=Sort[Append[DeleteCases[jGraph[nm],js[nm,x]->_],js[nm,x]->g],First[#1]<First[#2]&];
+gs=Last/@SortBy[MapIndexed[{MemberQ[#[[1]],_?Negative],#2,#1}&,g[[All,;;2]]],Most];
+nm/:jGraph[nm]=Sort[Append[DeleteCases[jGraph[nm],js[nm,x]->_],js[nm,x]->gs],First[#1]<First[#2]&];
 ]
 
 
