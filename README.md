@@ -1,4 +1,4 @@
-# $\textsf{\color{#FF7276}LiteRed2}$ MATHEMATICA package
+# **LiteRed2** MATHEMATICA package
 
 ***LiteRed2*** is conceived as an essential update of the LiteRed package by the same author (Roman Lee). Its purpose is the IBP reduction of the multiloop diagrams. 
 
