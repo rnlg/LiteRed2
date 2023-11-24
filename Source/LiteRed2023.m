@@ -536,7 +536,7 @@ nm /: NDs[nm] = dim;
 nm /: SPs[nm] = sps;
 nm /: LMs[nm] = lms;
 nm /: EMs[nm] = ems;
-CutDs[nm]^=Replace[OptionValue[CutDs],{None->ConstantArray[0,dim],Automatic:>cutds[SectorsPattern[nm],dim]}];
+CutDs[nm]^=Replace[OptionValue[CutDs],{None->ConstantArray[0,dim],Automatic:>cutds[SectorsPattern[nm],dim],l:{(0|1)...}:>PadRight[l,dim],l:{_Integer?Positive}:>ReplacePart[ConstantArray[0,dim],Thread[List/@l->1]]}];
 SectorsPattern[nm]^=SectorsPattern[nm]/. (1)->(_);
 (*Added 21.12.2020*)nm/:jsOrder[nm]=OptionValue[jsOrder];(*/Added 21.12.2020*)
 (*Definitions 21.11.13*)
@@ -819,7 +819,7 @@ Replace[l,{{x_,y_},z_}:>Hold[sp[x,y]===z,sp[x,y]=z],{1}]}];
 (*/Definitions 21.11.13*)
 PowerShifts[nm]^=ps;
 (*TODO: add consistency check:nonzero integer shifts and shifts differing by nonzero integer are forbidden.Denominators with the same shift can be mapped onto each other. Denominator can not be simultaneously cut and shifted!!! Or can they?*)
-CutDs[nm]^=Replace[OptionValue[CutDs],{None->ConstantArray[0,dim],Automatic:>cutds[SectorsPattern[nm],dim]}];
+CutDs[nm]^=Replace[OptionValue[CutDs],{None->ConstantArray[0,dim],Automatic:>cutds[SectorsPattern[nm],dim],l:{(0|1)...}:>PadRight[l,dim],l:{_Integer?Positive}:>ReplacePart[ConstantArray[0,dim],Thread[List/@l->1]]}];
 SectorsPattern[nm]^=SectorsPattern[nm]/. (1)->(_);
 nm::usage=ToString[Length@lms]<>"-loop basis with "<>ToString[Length@ems]<>" external momenta.\nUse Information["<>ToString[nm]<>"] to get basis summary.\nThis string can be redefined by setting "<>ToString[nm]<>"::usage=\"\[Ellipsis]\"";
 nm/:Information[nm]:=(If[ValueQ[nm::usage],Information[nm,LongForm->False]];
@@ -1093,9 +1093,9 @@ To compare the complexity of the integrals, use operators <,>,\[LessEqual],\[Gre
 MakeBoxes[j[nm_,inds__],TraditionalForm]:=InterpretationBox[SubsuperscriptBox["j",RowBox[ToBoxes[#,TraditionalForm]&/@{inds}],ToBoxes[nm,TraditionalForm]],j[nm,inds]]
 
 
-j/:Power[j[nm_,\[Alpha]__],\[Beta]_]/;Length@{\[Alpha]}===NDs[nm]:=j[nm,##]&@@(\[Beta]*{\[Alpha]});
+j/:Power[j[nm_,\[Alpha]__],\[Beta]_](*/;Length@{\[Alpha]}===NDs[nm]*):=j[nm,##]&@@(\[Beta]*{\[Alpha]});
 
-j/:j[nm_,\[Alpha]__]*j[nm_,\[Beta]__]/;Length@{\[Alpha]}===Length@{\[Beta]}===NDs[nm]:=j[nm,##]&@@({\[Alpha]}+{\[Beta]});
+j/:j[nm_,\[Alpha]__]*j[nm_,\[Beta]__]/;Length@{\[Alpha]}===Length@{\[Beta]}(*===NDs[nm]*):=j[nm,##]&@@({\[Alpha]}+{\[Beta]});
 
 
 j/:j[nm_][{\[Alpha]__}]:=j[nm,\[Alpha]];
@@ -1163,9 +1163,9 @@ Collect[ExpandAll@Factor[j[nm,Sequence@@(0&/@Ds@nm)]*(LFDistribute[expr,sp]/.Toj
 ];
 
 
-toj[nm_?DsSetQ,expr_]:=Module[{fexpr=Factor[expr],den,num,ds=LFDistribute[Ds[nm],sp],l,lms=Alternatives@@LMs[nm],df,tojf},
+toj[nm_?DsSetQ,expr_]:=Module[{fexpr=Factor[expr],den,num,ds=LFDistribute[Ds[nm],sp],l,lms=Alternatives@@LMs[nm],df,f,tojf},
 l=Length@ds;
-tojf=Times@@((If[FreeQ[#1,lms],#1,df=#1;Do[If[FreeQ[Factor[#1/ds[[i]]],lms],df=j[nm,##]&@@RotateRight[PadLeft[{-1},l],i];Break[]],{i,l}];df/.Toj[nm]]^#2)&@@@LFDistribute[FactorList@#,sp])&;
+tojf=Times@@((If[FreeQ[#1,lms],#1,df=#1;Do[If[FreeQ[f=Factor[#1/ds[[i]]],lms],df=f*j[nm,##]&@@RotateRight[PadLeft[{-1},l],i];Break[]],{i,l}];df/.Toj[nm]]^#2)&@@@LFDistribute[FactorList@#,sp])&;
 (*tojf expresses polynomial expressions in terms of j trying to make it in optimal way*)
 (*denominator is supposed to be proportional to j[...], so each factor should be either proportional to D_i or independent of loop momenta*)
 den=tojf@Denominator[fexpr];
@@ -1596,11 +1596,14 @@ StyleBox[\"from\", \"TI\"]\) to \!\(\*
 StyleBox[\"to\", \"TI\"]\).";
 
 
-SectorLayer[js[nm_,n:(0|1)..],{depth_Integer?NonNegative}]:=j[nm]@@@(({n}+#)&/@layer[{n},depth])
+Options[SectorLayer]={NumDepth->\[Infinity]};
 
 
-SectorLayer[js[nm_,n:(0|1)..],depth_Integer?NonNegative]:=j[nm]@@@(({n}+#)&/@Join@@(layer[{n},#]&/@Range[0,depth]))
-SectorLayer[js[nm_,n:(0|1)..],{from_Integer?NonNegative,to_Integer?NonNegative}]:=j[nm]@@@(({n}+#)&/@Join@@(layer[{n},#]&/@Range[from,to]))
+SectorLayer[js[nm_,n:(0|1)..],{depth_Integer?NonNegative},OptionsPattern[]]:=j[nm]@@@(({n}+#)&/@layer[{n},depth,OptionValue[NumDepth]])
+
+
+SectorLayer[js[nm_,n:(0|1)..],depth_Integer?NonNegative,OptionsPattern[]]:=j[nm]@@@(({n}+#)&/@Join@@(layer[{n},#,OptionValue[NumDepth]]&/@Range[0,depth]))
+SectorLayer[js[nm_,n:(0|1)..],{from_Integer?NonNegative,to_Integer?NonNegative},OptionsPattern[]]:=j[nm]@@@(({n}+#)&/@Join@@(layer[{n},#,OptionValue[NumDepth]]&/@Range[from,to]))
 
 
 jLevel::usage="jLevel[j[\!\(\*
@@ -1660,7 +1663,7 @@ Append->{}(*extra variables (for speed, some parameters can be added here as var
 Throw->1(*how many times to try with different orderings (assuming MonomialOrder\[Rule]Automatic,TimeConstrained\[Rule]n)*)};
 
 
-GenerateFPIBP[nm_Symbol,opts:OptionsPattern[]]:=GenerateFPIBP[#,opts]&/@UniqueSectors[nm];
+GenerateFPIBP[nm_Symbol?DsBasisQ,opts:OptionsPattern[]]:=GenerateFPIBP[#,opts]&/@UniqueSectors[nm];
 
 
 GenerateFPIBP[jsec:js[nm_Symbol,inds:(0|1)..],opts:OptionsPattern[]]:=Module[
@@ -2150,7 +2153,7 @@ indicnopToGo=0,
 indicoutput={},
 indicpb=0,
 indicspent,
-indicstime,
+indicstime=AbsoluteTime[],
 indicsip="",
 moni,
 numeric,
@@ -2249,10 +2252,8 @@ noRules=Rest@noRules;(*dbg=noRules;*)
 inds=Complement[indices,First/@First@cases];
 numeric=inds==={};
 If[Length@inds<=level,Break[]];
-(*ordering inds, then parameters is critical 
-to ensure correct work of IBPSelect and WhenBad*)
-vars=Join[inds,parameters];
-(*vars=Join[parameters,inds];*)(*dangerous*)
+vars=Join[parameters,inds];(*Join[inds,parameters](*old*)*)
+
 clean[dbase,vars];
 
 indicspent=Round[AbsoluteTime[]-indicstime];
@@ -2302,8 +2303,8 @@ jRules1=(#/.MapThread[#1->Expand[2#1-#2]&,{indices[[pos]],Rest[List@@First[#]][[
 (*Select specific case*)
 {case}=Select[cases,Simplify[And@@Thread[indices==Rest[List@@jRules1[[1]]]]/.#]&,1];
 (*Patternize the left sides of the rules and form a list of rules for the integrals to consider later*)
-{jRules1,{{rules2}}}=(*Modified 10.06.2023*)Reap[(*Modified 01.12.2016*)
-(j[nm,##]&@@indices/.ptrnrule)/;Evaluate[RulesToCondition[{case}]&&Not[Sow[whenBad[#[[2]]]]]]:>Evaluate[#[[2]]](*\[LongLeftArrow] this should also work if the second element is a pair*)(*/Modified 01.12.2016*)&@jRules1](*/Modified 10.06.2023*)
+{jRules1,{{rules2}}}=Reap[(*Modified 01.12.2016*)
+(j[nm,##]&@@indices/.ptrnrule)/;Evaluate[RulesToCondition[{case}]&&Not[Sow[whenBad[#[[2]]]]]]:>Evaluate[If[Head[#[[2]]]===List,{collect[#[[2,1]]],#[[2,2]]},collect[#[[2]]]]](*\[LongLeftArrow] this should also work if the second element is a pair*)(*/Modified 01.12.2016*)&@jRules1]
 ,"Constructing rule...",1];
 (*If[!FreeQ[rules2,Power[_,Except[_Integer]]],dbg1=jRules1;Abort[]];*)
 If[rules2=!=True,(*Found the rule!*)
@@ -2361,7 +2362,7 @@ misFound={};LiteRedPrint["    "<>ToString["jRules"@@jsect]<>" \[LongDash] partia
 misFound=j[nm,##]&@@indices/.#&/@{ToRules@smartReduce[LogicalExpand@Reduce[Not[Or@@jRulesF[[All,1,2]]]&&constr,Integers]]};
 If[!FreeQ[misFound,Alternatives@@indices],Message[SolvejSector::leak,misFound]];
 MIs[nm]^=jVars[{DeleteCases[MIs[nm],_?(jSector[#]===jsect&)],misFound}(*(*Deleted 16.03.2021*),Sort\[Rule]jSector(*/Deleted 16.03.2021*)*)];
-LiteRedPrint["    "<>ToString["jRules"@@jsect]<>" \[LongDash] reduction rules for the sector.\n    MIs["<>ToString[nm]<>"] \[LongDash] list of master integrals appended with "<>ToString[Length@misFound]<>" integrals"<>If[misFound==={},"."," ("<>StringTrim[ToString[misFound]," "|"{"|"}"]<>")."]]
+LiteRedPrint[ "Finished in "<>ToString[Round[AbsoluteTime[]-indicstime]]<>" seconds.\n    "<>ToString["jRules"@@jsect]<>" \[LongDash] reduction rules for the sector.\n    MIs["<>ToString[nm]<>"] \[LongDash] list of master integrals appended with "<>ToString[Length@misFound]<>" integrals"<>If[misFound==={},"."," ("<>StringTrim[ToString[misFound]," "|"{"|"}"]<>")."]]
 ];
 Switch[OptionValue[GeneratedCell],
 Close,
@@ -2381,7 +2382,7 @@ If[reserved,DeleteFile[disksave<>"/"<>file]];Abort[]]]
 
 (*WhenBad*)WhenBad[expr_,indices_,corner_,parameters_]:=Module[{jl=(*Added 27.11.2019*)CollectjList[expr](*/Added 27.11.2019*),dconds,nconds,pars,p,res},
 pars=Replace[parameters,{}->{p}];(*work around for CoefficientRules[expr,{}] to work*)
-dconds=LogicalExpand[Or@@(And@@Thread[0==(Last/@CoefficientRules[#,pars])(*(*Deleted 05.03.2018*)Flatten[{CoefficientList[#,parameters]}](*/Deleted 05.03.2018*)*)]&/@Union@@((First/@FactorList[#])&/@Denominator/@Last/@jl))];nconds={#2,SmartReduce[Or@@Thread[Pick[Rest[List@@#1],corner,0]>=1],indices,corner]}&@@@jl;If[MemberQ[nconds,{_,True}],Return[True]];nconds=Or@@Flatten@Cases[nconds,{b_,a:Except[False]}:>Cases[Replace[{a},Or->Sequence,{2},Heads->True],x_/;0=!=(*(*Deleted 10.06.2023*)Expand@(*/Deleted 10.06.2023*)*)(Numerator[b]/.ToRules[x])]];(*LogicalExpand@*)res=SmartReduce[LogicalExpand[dconds||nconds],indices,corner];
+dconds=LogicalExpand[Or@@(And@@Thread[0==(Last/@CoefficientRules[#,pars])(*(*Deleted 05.03.2018*)Flatten[{CoefficientList[#,parameters]}](*/Deleted 05.03.2018*)*)]&/@Union@@((First/@FactorList[#])&/@Denominator/@Last/@jl))];nconds={#2,SmartReduce[Or@@Thread[Pick[Rest[List@@#1],corner,0]>=1],indices,corner]}&@@@jl;If[MemberQ[nconds,{_,True}],Return[True]];nconds=Or@@Flatten@Cases[nconds,{b_,a:Except[False]}:>Cases[Replace[{a},Or->Sequence,{2},Heads->True],x_/;0=!=Expand[Numerator[b]/.ToRules[x]]]];(*LogicalExpand@*)res=SmartReduce[LogicalExpand[dconds||nconds],indices,corner];
 (*Added 23.09.2022*)If[!FreeQ[res,Power[_,Except[_Integer]]],True,res](*/Added 23.09.2022*)(*Had to add this as Reduce sometimes returns square roots*)
 ];(*/WhenBad*)
 
@@ -3666,7 +3667,7 @@ jrules=(*Modified 02.12.2016*)ojRules@@hjsec/.PatternTest->(#1&)(*/Modified 02.1
 ];
 t1=Length@jlist;(*\:0447\:0438\:0441\:043b\:043e \:043f\:0440\:0430\:0432\:0438\:043b, \:043d\:0435\:043e\:0431\:0445\:043e\:0434\:0438\:043c\:044b\:0445 \:0434\:043b\:044f \:043d\:0430\:0434\:0441\:0435\:043a\:0442\:043e\:0440\:043e\:0432*)
 While[jlist=!={},
-nrs=Replace[jlist,jrules,{1}];
+nrs=(*Modified 17.10.2023*)(*Replace[jlist,jrules,{1}]*)Collect[Replace[jlist,jrules,{1}],_j,Together](*/Modified 17.10.2023*);
 rs0=Join[jlist,rs0];rs=Join[nrs,rs];
 nr+=Length@jlist;
 jlist={#,jsector@#}&/@DeleteDuplicates@Cases[{nrs}/.Dispatch[Thread[rs0->0]],_j,\[Infinity]];
@@ -3827,7 +3828,6 @@ nrt=Length[rules];
 vrules=Thread[#->Table[Unique["v"],{Length[#]}]]&[Complement[Variables[Last/@rules],jvars]];
 Monitor[
 matr="Array mat["<>ToString[nrt]<>","<>ToString[Length[jvars]]<>"] Sparse;\n[mat] := [ "<>StringRiffle[MapIndexed[Function[{rule,i},jvs=DeleteDuplicates@Cases[rule,_j,-1];StringReplace[ToString[Join[i,SortBy[List@@@Thread[(jvs/.j2n)->Coefficient[-Subtract@@rule,jvs]](*Transpose[{jvs/.j2n,Coefficient[-Subtract@@rule,jvs]/.vrules}]*),First]]/.vrules,InputForm],{"{"->"[ ","}"->"] "}]],rules],"\n"]<>"];","Constructing sparse matrix..."];
-(*WriteString["debug2",matr];*)
 jvarsstr=StringReplace[ToString[#]," "->""]&/@jvars;
 l=Max[StringLength/@jvarsstr];
 jvarsstr=StringPadLeft[#,l]&/@jvarsstr;
@@ -3953,7 +3953,9 @@ StyleBox[\"F\", \"TI\"]\) polynomials, entering the Feynman parametrization of t
 StyleBox[\"dens\", \"TI\"]\)},{\!\(\*
 StyleBox[\"lms\", \"TI\"]\)}] does the same for the integrals with denominators {\!\(\*
 StyleBox[\"dens\", \"TI\"]\)} and loop momenta {\!\(\*
-StyleBox[\"lms\", \"TI\"]\)}.";
+StyleBox[\"lms\", \"TI\"]\)}.\nFeynParUF[{\!\(\*
+StyleBox[\"dens\", \"TI\"]\)},{\!\(\*
+StyleBox[\"lms\", \"TI\"]\)}]";
 
 
 Options[FeynParUF]={Function->False (*Whether to present result in the form of a pure function*),NamingFunction->(Array[Symbol["x"<>ToString[#]]&,{#}]&),Sign->Plus};
@@ -3967,7 +3969,7 @@ FeynParUF[dsl_List,lms_List,OptionsPattern[]]:=Module[
 xs=Table[Unique["x"],{Length@ds}];
 (*xs=OptionValue[NamingFunction][Length@ds];*)
 Declare[Evaluate@xs,Number];
-den=Collect[LFDistribute[xs . ds,_sp],_sp];
+den=Collect[LFDistribute[\[Sigma] xs . ds,_sp],_sp];
 t1=(D[den,#]/2/.{Derivative[0,1][sp]:>(#1&),Derivative[1,0][sp]:>(#2&)})&/@lms;
 t2=(D[t1,#])&/@lms;
 t1=t1/.Thread[lms->0];
@@ -3977,7 +3979,7 @@ t2=Together[(dt2*den/.Thread[lms->0])-LFDistribute[Inner[sp,t1,adjugate[t2] . t1
 If[OptionValue[Function],
 Function@@{{dt2,t2}/.Thread[xs->(Slot/@Range[Length@ds])]},
 If[!MatchQ[xs,{__Symbol}],
-Message[FeynParUF::valued,xs];{\[Sigma]*dt2,\[Sigma]*t2,Unflatten[xs,dsl]},{\[Sigma]*dt2,\[Sigma]*t2,Unflatten[xs,dsl]}/.Thread[xs->OptionValue[NamingFunction][Length@ds]]
+Message[FeynParUF::valued,xs];{dt2,t2,Unflatten[xs,dsl]},{dt2,t2,Unflatten[xs,dsl]}/.Thread[xs->OptionValue[NamingFunction][Length@ds]]
 ]
 ]
 ]
@@ -4026,6 +4028,25 @@ GenerateFeynParUF[nm__]:=(GenerateFeynParUF/@{nm};)
 
 GenerateFeynParUF[nm_Symbol]:=(Function[fp,(nm/:FeynParUF[nm,OptionsPattern[]]:=If[OptionValue[Function],fp,Append[fp@@#,#]&@OptionValue[NamingFunction][Length@Ds[nm]]])][FeynParUF[Ds[nm],LMs[nm],Function->True]];CurrentState[nm,GenerateFeynParUF]=True;LiteRedPrint["Polynomials U and F for basis "<>#<>" are generated.\n    FeynParUF[" <> # <>",\!\(\*
 StyleBox[\"options\", \"TI\"]\)] should work faster now."] &@ToString[nm];)
+
+
+FeynParG::usage="FeynParG[\!\(\*
+StyleBox[\"basis\", \"TI\"]\)] gives a list {\!\(\*
+StyleBox[\"G\", \"TI\"]\),\!\(\*
+StyleBox[\"xs\", \"TI\"]\)}, where \!\(\*
+StyleBox[\"G\", \"TI\"]\)\!\(\*
+StyleBox[\"=\", \"TI\"]\)\!\(\*
+StyleBox[\"U\", \"TI\"]\)\!\(\*
+StyleBox[\"+\", \"TI\"]\)\!\(\*
+StyleBox[\"F\", \"TI\"]\) and \!\(\*
+StyleBox[\"U\", \"TI\"]\) and \!\(\*
+StyleBox[\"F\", \"TI\"]\) are the polynomials, entering the Feynman parametrization of the integrals in the highest sector  of the basis, and \!\(\*
+StyleBox[\"xs\", \"TI\"]\) are the Feynman parameters.\nFeynParUF[js[\[Ellipsis]]] gives \!\(\*
+StyleBox[\"G\", \"TI\"]\) polynomial, entering the Feynman parametrization of the integrals in the given sector.\nFeynParUF[{\!\(\*
+StyleBox[\"dens\", \"TI\"]\)},{\!\(\*
+StyleBox[\"lms\", \"TI\"]\)}] does the same for the integrals with denominators {\!\(\*
+StyleBox[\"dens\", \"TI\"]\)} and loop momenta {\!\(\*
+StyleBox[\"lms\", \"TI\"]\)}.";
 
 
 FeynParUVM::usage="FeynParUVM[\!\(\*
@@ -4423,17 +4444,14 @@ MakeDSystem::usage="MakeDSystem[j_,toj_:{},x_] constructs matrix M in the differ
 MakeDSystem::err="Forgotten tomis? The derivative is not expressed via `1`.";
 
 
-Options[MakeDSystem]={Fermatica`UseFermat->False};
+MakeDSystem[mis:{__j},x_]:=MakeDSystem[{mis,{}},x]
 
 
-MakeDSystem[mis:{__j},x_,opts:OptionsPattern[]]:=MakeDSystem[{mis,{}},x,opts]
-
-
-MakeDSystem[{mis_List,tomis_List:{}},x_,OptionsPattern[]]:=Module[{eqs,Mi},
+MakeDSystem[{mis_List,tomis_List:{}},x_]:=Module[{eqs,Mi},
 If[Head[x]===List,
-eqs=IBPReduce[Dinv[mis,#]&/@x,Fermatica`UseFermat->OptionValue[Fermatica`UseFermat]]/.tomis;
+eqs=IBPReduce[Dinv[mis,#]&/@x]/.tomis;
 Mi=Outer[Coefficient,#,mis]&/@eqs,
-eqs=IBPReduce[Dinv[mis,x],Fermatica`UseFermat->OptionValue[Fermatica`UseFermat]]/.tomis;
+eqs=IBPReduce[Dinv[mis,x]]/.tomis;
 Mi=Outer[Coefficient,eqs,mis]];
 If[!MatchQ[Flatten@Collectj[eqs-Mi . mis,Factor],{0..}],Message[MakeDSystem::err,mis]];
 Mi
