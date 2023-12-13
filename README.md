@@ -21,4 +21,4 @@ You can load LiteRed2 package from Mathematica session with ``<<LiteRed2` ``
 
 ##### Using Fermat CAS
 
-LiteRed2 can benefit from using Robert H. Lewis' [Fermat CAS](http://home.bway.net/lewis/). The interface package ***Fermatica*** can be downloaded from [Fermatica repository](https://bitbucket.org/rnlee/fermatica/src/master/). When ***Fermatica*** is installed and working, it can be loaded along with ***LiteRed2***  via `` <<Fermatica` `` and used via  option `UseFermat->True` of `SolvejSector`  procedure.
+LiteRed2 can benefit from using Robert H. Lewis' [Fermat CAS](http://home.bway.net/lewis/). The interface package ***Fermatica*** can be downloaded from [Fermatica repository](https://github.com/rnlg/Fermatica). When ***Fermatica*** is installed and working, it can be loaded along with ***LiteRed2***  via `` <<Fermatica` `` and used via  option `UseFermat->True` of `SolvejSector`  procedure.
