@@ -32,13 +32,13 @@ If[$VersionNumber>=12.2,SetOptions[ValueQ,Method->"Legacy"]];
 LiteRed`$LiteRedHomeDirectory=DirectoryName[$InputFileName];
 
 
-LiteRed`Private`RNLeeds[context_String,files:{___String}]:=Quiet[Needs[context,#]&/@files];
+LiteRed`Private`RNLneeds[context_String,files:{___String}]:=Quiet[Needs[context,#]&/@files];
 
 
 Types`TypesLog=False;
-LiteRed`Private`RNLeeds["Types`",{"RNL`Types`",LiteRed`$LiteRedHomeDirectory<>"RNL/Types.m"}];
-LiteRed`Private`RNLeeds["LinearFunctions`",{"RNL`LinearFunctions`",LiteRed`$LiteRedHomeDirectory<>"RNL/LinearFunctions.m"}];
-LiteRed`Private`RNLeeds["Numbers`",{"RNL`Numbers`",LiteRed`$LiteRedHomeDirectory<>"RNL/Numbers.m"}];Vectors`VectorsLog=False;LiteRed`Private`RNLeeds["Vectors`",{"RNL`Vectors`",LiteRed`$LiteRedHomeDirectory<>"RNL/Vectors.m"}];
+LiteRed`Private`RNLneeds["Types`",{"RNL`Types`",LiteRed`$LiteRedHomeDirectory<>"RNL/Types.m"}];
+LiteRed`Private`RNLneeds["LinearFunctions`",{"RNL`LinearFunctions`",LiteRed`$LiteRedHomeDirectory<>"RNL/LinearFunctions.m"}];
+LiteRed`Private`RNLneeds["Numbers`",{"RNL`Numbers`",LiteRed`$LiteRedHomeDirectory<>"RNL/Numbers.m"}];Vectors`VectorsLog=False;LiteRed`Private`RNLneeds["Vectors`",{"RNL`Vectors`",LiteRed`$LiteRedHomeDirectory<>"RNL/Vectors.m"}];
 
 
 
@@ -52,7 +52,7 @@ $LiteRedReleaseDate::usage="$LiteRedReleaseDate is the release date of the curre
 Global`$LiteRedToDo=True;
 
 
-todo["Move $LiteRed* names to Glabal` context. Check!"];
+todo["Move $LiteRed* names to Global` context. Check!"];
 
 
 SetAttributes[LiteRed`Private`WarnSet,HoldAll];
@@ -727,7 +727,8 @@ Append->False,
 PowerShifts->None,
 EMs->Automatic,(*One might want to have more external momenta than it appears*)
 SolvejSector->False,
-jsOrder->{"np","cp","-ds","-ns"}
+jsOrder->{"np","cp","-ds","-ns"},
+AttachGraph->False
 };
 
 
@@ -756,8 +757,8 @@ NewDsBasis[nm_Symbol, ds : {(_?VecQ | _?NumQ) ..}, lms : {__?VecVarQ},
 d=MetricTensor[],
 m, dens, ddens,pars,
 dim, ems, sps, toj,ns,(*nums,*)l,
-gi,as,fs,fes,ss,save,ps},
-{gi,as,fs,fes,ss,save,ps}={OptionValue[GenerateIBP],OptionValue[AnalyzeSectors],OptionValue[FindSymmetries],OptionValue[FindExtSymmetries],OptionValue[SolvejSector],OptionValue[Directory],OptionValue[PowerShifts]};
+gi,as,fs,fes,ss,save,ps,gr},
+{gi,as,fs,fes,ss,save,ps,gr}={OptionValue[GenerateIBP],OptionValue[AnalyzeSectors],OptionValue[FindSymmetries],OptionValue[FindExtSymmetries],OptionValue[SolvejSector],OptionValue[Directory],OptionValue[PowerShifts],OptionValue[AttachGraph]};
 If[Length@UpValues[nm]>0,Message[NewDsBasis::ovrw,nm];Clear[nm]];
 CurrentState[nm,{SolvejSector,FindSymmetries,AnalyzeSectors,GenerateIBP,NewDsBasis}]=False;
 SectorsPattern[nm]^=Replace[as,True|False->OptionValue[SectorsPattern]];
@@ -840,8 +841,10 @@ CurrentState[nm,NewDsBasis]=True;
 If[save=!=False,
 BasisDirectory[nm]=save;
 DiskSave[nm,Save->"Basis"]];
-
 (*Options processing*)
+If[MatchQ[gr,HoldPattern[js[nm,___]->_]|HoldPattern[{(js[nm,___]->_)..}]],
+AttachGraph[#1,#2]&@@@Flatten[{gr}]
+];
 If[TrueQ[ss||fs||as||gi],
 LiteRedPrint[Style["Generating IBP\[Ellipsis]",Bold]];GenerateIBP[nm]];
 If[TrueQ[ss||fs||as],
@@ -2079,7 +2082,7 @@ StyleBox[\"sector\", \"TI\"]\).\nOptions:\n\
 StyleBox[\"directory\", \"TI\"]\):False determines whether to save the found rules on the disk;\n\
 	SR\[Rule]False|True:True determines whether the symmetry relations should be used on the last step;\n\
     RRs\[Rule]{IBP,LI} is an option for SolvejSector which determines which recurrence relations to use\n\
-	jRules\[Rule]f:({{}}&) determines for which integrals we need rules. f is supposed to be applied to indices, like f@@{n1,n2,....}, and give the .";
+	jRules\[Rule]f:({{}}&) determines for which integrals we need rules. f is supposed to be applied to indices, like f@@{n1,n2,....}, and give the list of equations.";
 SolvejSector::leak="Discrepancy detected. Reduction is not full: `1`.";
 NMIs::usage="NMIs\[Rule]n is an option for SolvejSector, which determines the minimal number of masters in the sector.";
 RRs::usage="RRs\[Rule]{IBP,LI} is an option for SolvejSector which determines which recurrence relations to use.";
