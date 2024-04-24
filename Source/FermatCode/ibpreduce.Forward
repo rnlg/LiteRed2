@@ -22,11 +22,13 @@ Function IBPReduce(nrows,row1,row2,fcol,fcol1,coef,i,j,time) =
       if row1 > <<save>> then !!(&o,',') fi;
       for i = [mat]row1 do
         if i = fcol then
-          for j = 1,Cols[jvars] do !(&o,jvars[fcol,j]:char) od;
+;          for j = 1,Cols[jvars] do !(&o,jvars[fcol,j]:char) od;
+          !(&o,'j[',fcol,']');
           !(&o,' -> 0 ')
         else
           !(&o,'+ (',mat[row1,i],')',' * ');
-          for j = 1,Cols[jvars] do !(&o,jvars[i,j]:char) od
+;         for j = 1,Cols[jvars] do !(&o,jvars[i,j]:char) od
+          !(&o,'j[',i,']')
         fi;
       od
     fi;

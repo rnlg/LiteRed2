@@ -227,6 +227,9 @@ FeynParUF;FeynParGdG;
 FeynParUVM;
 
 
+LP;
+
+
 GramP;GramPFunction;
 
 
@@ -492,7 +495,8 @@ FindExtSymmetries->False,
 (*/Added 05.05.2023*)
 CutDs->Automatic,
 SectorsPattern->{___},
-(*Added 21.12.2020*)jsOrder->{"np","cp","-ds","-ns"}(*/Added 21.12.2020*)
+(*Added 21.12.2020*)jsOrder->{"np","cp","-ds","-ns"}(*/Added 21.12.2020*),
+AttachGraph->False
 };
 
 
@@ -502,7 +506,7 @@ NewDsSet[nm_Symbol, ds : {(_?VecQ | _?NumQ) ..}, lms : {__?VecVarQ},
   OptionsPattern[]] := Module[{
 d=MetricTensor[],
  dens, ddens,vdens,m,
-dim, ems, sps, toj,ns,l},
+dim, ems, sps, toj,ns,l,gr},
 If[Length@UpValues[nm]>0,Message[NewDsSet::ovrw,nm];Clear[nm]];
 SectorsPattern[nm]^=OptionValue[SectorsPattern];
 (*Normalize denominators*)
@@ -571,6 +575,10 @@ If[Not@TrueQ[Not@OptionValue[FindExtSymmetries]],
 LiteRedPrint[Style["Finding external symmetries\[Ellipsis]",Bold]];
 FindExtSymmetries[nm,##]&@@Replace[OptionValue[FindExtSymmetries],True->$ActiveBases];
 ];
+gr=OptionValue[AttachGraph];
+If[MatchQ[gr,HoldPattern[js[nm,___]->_]|HoldPattern[{(js[nm,___]->_)..}]],
+AttachGraph[#1,#2]&@@@Flatten[{gr}]
+];
 (*/Added 05.05.2023*)
 LiteRedPrint["Valid set.\n    Ds[" <> # <>"] \[LongDash] denominators,\n    SPs[" <> # <>"] \[LongDash] scalar products involving loop momenta,\n    LMs[" <> # <>"] \[LongDash] loop momenta,\n    EMs[" <> # <>"] \[LongDash] external momenta,\n    Relations[" <> # <>"] \[LongDash] relations between denominators."(*<>",\n    PowerShifts[" <> # <>"] \[LongDash] vector of constant shifts in powers."*)<>(If[Not@TrueQ@Not@BasisDirectory[nm],"\nThe definitions of the set will be saved in "<>BasisDirectory[nm],""])] &@ToString[nm];
 If[Not@TrueQ@Not@BasisDirectory[nm],DiskSave[nm,Save->"Basis"]];
@@ -625,12 +633,13 @@ PFjSubsectors::usage="PFjSubsectors[js[\!\(\*
 StyleBox[\"set\", \"TI\"]\),1,0,...]] returns a list of largest subsectors that contain linearly independent denominators (i.e., need not be \"PFReduce\"-ed).";
 
 
-PFjSubsectors[jjs:js[nm_,(0|1)...]]:=Module[{ds=Ds[jjs],jjsz,vds,nds,rk,range,inds},
+PFjSubsectors[jjs:js[nm_,(0|1)...]]:=Module[{ds=Ds[jjs],cutds,jjsz,vds,nds,rk,range,inds},
 nds=Length[ds];jjsz=Replace[jjs,1->0,{1}];range=Range[nds];
+cutds=Flatten[Position[CutDs[nm],1,{1}]];
 inds=Flatten[Position[jjs,1,{1}]];
 vds=Outer[Coefficient,LFDistribute[ds,sp],SPs[nm]];(*list of ds as vectors*)
 rk=MatrixRank[vds];
-ReplacePart[jjsz,Thread[inds[[#]]->1]]&/@Select[Subsets[range,{rk}],MatrixRank[vds[[#]]]==rk&]
+ReplacePart[jjsz,Thread[inds[[#]]->1]]&/@Select[Subsets[range,{rk}],SubsetQ[#,cutds]&&MatrixRank[vds[[#]]]==rk&]
 ]
 
 
@@ -3814,33 +3823,34 @@ Share->1000(*Determines the time in milliseconds after which the garbage collect
 };
 
 
-FermatIBPReduce[ex_,OptionsPattern[]]:=Module[{mis,jvars,jvarsstr,l,dir,nrt,nr=0,k=1,prevdir=Directory[],j2n,jsecs,jvs,rules,matr,vrules,program,fermat,reap,resrules={},res,ex1,save},
+FermatIBPReduce[ex_,OptionsPattern[]]:=Module[{mis,jvars,jvarsstr,l,dir,nrt,nr=0,k=1,prevdir=Directory[],j2n,jsecs,jvs,rules,matr,vrules,program,fermat,reap,resrules={},res,ex1,save,i=0,tomis},
 While[FileExistsQ[dir="IBPReduction"<>ToString[k]],k++];
 CreateDirectory[dir];
 IBPSelect[ex,dir];
 mis=Get[dir<>"/MIs"];
 LiteRedPrintTemporary["MIs: ",mis];
-reap[l_List]:=reap/@l;reap[x_]:=(AppendTo[resrules,#->x];#)&[j[Unique["r"]]];
+reap[l_List]:=reap/@l;reap[x_]:=(AppendTo[resrules,#->x];#)&[j[++i]];
 ex1=First@reap[{ex}];
 jvars=Join[First/@resrules,Reverse@Get[dir<>"/jVars"]];
 j2n=Dispatch[Thread[jvars->Range[Length[jvars]]]];
+tomis=(j@@FirstPosition[jvars,#]->#)&/@mis;
 jsecs=Sort[DeleteDuplicates[Flatten[Last/@Get[dir<>"/jsDependencies"]]],Less];
 Monitor[rules=Join[SortBy[Flatten[Map[Last[Get[dir<>"/"<>ToString[#]]]&,jsecs]],jComplexity@*First],resrules];DeleteDirectory[dir,DeleteContents->True],"Getting rules from files..."];
 nrt=Length[rules];
 vrules=Thread[#->Table[Unique["v"],{Length[#]}]]&[Complement[Variables[Last/@rules],jvars]];
 Monitor[
 matr="Array mat["<>ToString[nrt]<>","<>ToString[Length[jvars]]<>"] Sparse;\n[mat] := [ "<>StringRiffle[MapIndexed[Function[{rule,i},jvs=DeleteDuplicates@Cases[rule,_j,-1];StringReplace[ToString[Join[i,SortBy[List@@@Thread[(jvs/.j2n)->Coefficient[-Subtract@@rule,jvs]](*Transpose[{jvs/.j2n,Coefficient[-Subtract@@rule,jvs]/.vrules}]*),First]]/.vrules,InputForm],{"{"->"[ ","}"->"] "}]],rules],"\n"]<>"];","Constructing sparse matrix..."];
-jvarsstr=StringReplace[ToString[#]," "->""]&/@jvars;
+(*jvarsstr=StringReplace[ToString[#]," "->""]&/@jvars;
 l=Max[StringLength/@jvarsstr];
-jvarsstr=StringPadLeft[#,l]&/@jvarsstr;
+jvarsstr=StringPadLeft[#,l]&/@jvarsstr;*)
 save=If[Replace[OptionValue[Save],Automatic->Not[OptionValue[Run]]],1,nrt-Length[resrules]+1];
-program=StringRiffle[Prepend[MapIndexed["[jvars["<>ToString[First[#2]]<>"~"<>ToString[First[#2]]<>"]]:='"<>#<>"';"&,jvarsstr],"Array jvars["<>ToString[Length[jvarsstr]]<>","<>ToString[l]<>"];"],"\n"];
-program=program<>"\n"<>StringReplace[ReadString[$LiteRedHomeDirectory<>"FermatCode/ibpreduce."<>ToString[OptionValue[Direction]]],{"<<gctime>>"->ToString[OptionValue[Share]],"<<save>>"->ToString[save]}]<>"\n"<>StringRiffle["&(J="<>ToString[Last@#]<>");"&/@vrules,"\n"]<>"\n"<>matr<>"\n&(S='<<out>>');\n!!(&o,'{');\nIBPReduce;\n!!(&o,',');\n!!(&o,'{"<>StringRiffle[ToString[#2]<>"->"<>ToString[FullForm[#1]]&@@@vrules,", "]<>"}');\n!!(&o,'}');&(S=@);";
+program=(*StringRiffle[Prepend[MapIndexed["[jvars["<>ToString[First[#2]]<>"]]:='"<>#<>"';"&,jvarsstr],"Array jvars["<>ToString[Length[jvarsstr]]<>","<>ToString[l]<>"];"],"\n"];
+program=program<>"\n"<>*)StringReplace[ReadString[$LiteRedHomeDirectory<>"FermatCode/ibpreduce."<>ToString[OptionValue[Direction]]],{"<<gctime>>"->ToString[OptionValue[Share]],"<<save>>"->ToString[save]}]<>"\n"<>StringRiffle["&(J="<>ToString[Last@#]<>");"&/@vrules,"\n"]<>"\n"<>matr<>"\n&(S='<<out>>');\n!!(&o,'{');\nIBPReduce;\n!!(&o,',');\n!!(&o,'{"<>StringRiffle[ToString[#2]<>"->"<>ToString[FullForm[#1]]&@@@vrules,", "]<>"}');\n!!(&o,'}');&(S=@);";
 Monitor[res=Fermatica`FermatSession[program,nr,Which[StringMatchQ[#2,"row * is reduced."],ToExpression[StringReplace[#2,LetterCharacter|":"|"["|"."|"]"->""]],StringMatchQ[#2,"* debug"],Print[#2];#1,True,#1]&,Run->OptionValue[Run],In->OptionValue[In],Out->OptionValue[Out]],Overlay[{ProgressIndicator[nr,{0,nrt}],ToString[nr]<>"/"<>ToString[nrt]},Alignment->Center]];
 If[TrueQ[OptionValue[Run]],
-res=Fold[ReplaceAll,ex1,ToExpression[res]],
-Print["Run fermat and issue\n    &(R='"<>res[[1]]<>"');\ncommand. The result will be in "<>res[[2]]<>" file.\nIt can be used with\n    Fold[ReplaceAll,res,Get[\""<>res[[2]]<>"\"]]\nwhere res is the output of FermatIBPReduce."];
-res=ex1;
+res=Fold[ReplaceAll,ex1,ToExpression[StringReplace[res,"j[ "~~n:DigitCharacter..~~"]":>ToString[jvars]<>"[["<>n<>"]]"]]],
+Print["Run fermat and issue\n    &(R='"<>res[[1]]<>"');\ncommand. The result will be in "<>res[[2]]<>" file.\nIt can be used with\n    Fold[ReplaceAll,res,Get[\""<>res[[2]]<>"\"]]/.tomis\nwhere {res,tomis} is the output of FermatIBPReduce."];
+res={ex1,tomis};
 ];
 Return[res]
 ]
@@ -3968,6 +3978,7 @@ FeynParUF::valued="Parameters should all be symbols. Meanwhile, they are `1`.\nU
 
 FeynParUF[dsl_List,lms_List,OptionsPattern[]]:=Module[
 {xs,ds=Flatten@dsl,den,t1,t2,dt2,a,\[Sigma]=Replace[OptionValue[Sign],{Plus->1,Minus->-1}]},
+(*Print["\[Sigma]=",\[Sigma]];*)
 xs=Table[Unique["x"],{Length@ds}];
 (*xs=OptionValue[NamingFunction][Length@ds];*)
 Declare[Evaluate@xs,Number];
@@ -4030,6 +4041,20 @@ GenerateFeynParUF[nm__]:=(GenerateFeynParUF/@{nm};)
 
 GenerateFeynParUF[nm_Symbol]:=(Function[fp,(nm/:FeynParUF[nm,OptionsPattern[]]:=If[OptionValue[Function],fp,Append[fp@@#,#]&@OptionValue[NamingFunction][Length@Ds[nm]]])][FeynParUF[Ds[nm],LMs[nm],Function->True]];CurrentState[nm,GenerateFeynParUF]=True;LiteRedPrint["Polynomials U and F for basis "<>#<>" are generated.\n    FeynParUF[" <> # <>",\!\(\*
 StyleBox[\"options\", \"TI\"]\)] should work faster now."] &@ToString[nm];)
+
+
+LP::usage="LP[j[...]] gives the Lee-Pomeransky representation of the integral.\nNB: for pseudoeuclidean metrics use Sign->Minus option and m^2-p^2 convention for denominators.";
+
+
+Options[LP]={Sign->Plus,NamingFunction->(Array[Symbol["x"<>ToString[#]]&,{#}]&)};
+
+
+LP[j[nm_,ns__],OptionsPattern[]]:=Module[{ds,nns,ls=LMs[nm],G,xs},
+{ds,nns}=Transpose@Cases[Transpose[{Ds[nm],{ns}}],{_,Except[0]}];
+xs=OptionValue[NamingFunction][Count[{ns},Except[0]]];
+G=Plus@@(FeynParUF[ds,ls,Sign->OptionValue[Sign],Function->True]@@xs);
+{Gamma[MetricTensor[]/2]/Gamma[(Length[ls]+1)MetricTensor[]/2-Plus@@nns] Fold[If[#2[[2]]>0,#2[[1]]^(#2[[2]]-1)*#1,(-1)^-#2[[2]] D[#1,#2*{1,-1}]/.#2[[1]]->0]&,G^(-MetricTensor[]/2),Transpose[{xs,nns}]],Cases[Transpose[{xs,nns}],{x_,_?Positive}:>x]}
+]
 
 
 FeynParG::usage="FeynParG[\!\(\*
@@ -4437,7 +4462,7 @@ tojps[nm,If[p=!=q,1,1/2]*(sp[#,djdp]&/@em) . Inverse[Outer[sp,em,em]] . D[em,q]]
 
 
 fromjps[jj_]:=Fromj[jj]/Times@@(Ds[First[jj]]^PowerShifts[First[jj]])
-tojps[nm_,jj_]:=Toj[nm,Factor[Times@@(Ds[nm]^PowerShifts[nm])*jj]]
+tojps[nm_,jj_]:=Toj[nm,Together[Times@@(Ds[nm]^PowerShifts[nm])*jj]]
 
 
 MakeDSystem::usage="MakeDSystem[j_,toj_:{},x_] constructs matrix M in the differential system \!\(\*SubscriptBox[\(\[PartialD]\), \(x\)]\)j=Mj. The second argument toj corresponds to additional rules applied after reduction. If x is a list of variables, the result is also a list of the corresponding matrices.";
