@@ -98,7 +98,7 @@ Function SortUp(eqs,list,r,i,j,k) =
       if list[1,j]=1 then
         k:+;
         Switchrow([eqs],k,i);
-        & >
+        &>
       fi
     od
   od; {here sorting of the first k lines should happen}
@@ -108,7 +108,7 @@ Function Member(list,el,re,i) =
   for i = [list]1 do
     if i = el then
       re:=1;
-      & >
+      &>
     fi;
   od;
   re.;
