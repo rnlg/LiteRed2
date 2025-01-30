@@ -8,7 +8,7 @@ Please, check [Discussions](https://github.com/rnlg/LiteRed2/discussions) for an
 
 1. Copy the content of the 'Source/' directory to the desired location, say `home/of/LiteRed2`
 2. Change to this location with `cd home/of/LiteRed2`
-3. Run `math -script makeShortcut.m`
+3. Run `math -script makeShortcut.m` (for version 14.1 and later use `wolfram -script makeShortcut.m`).
 
 Result: 
 You can load LiteRed2 package from Mathematica session with ``<<LiteRed2` ``
