@@ -75,7 +75,7 @@ NumFuncs=Union[NumFuncs1,NumFuncs2,NumFuncs3,NumFuncs4,NumFuncs0];
 
 NumQ[x_]:=TypeBelowQ[Unevaluated[x],Number]
 NumVarQ[x_]:=
-  AtomQ[Unevaluated[x]]&&(!NumberQ[Unevaluated[x]])&&ExpressionType[x]===Number
+  AtomQ[Unevaluated[x]]&&(!NumericQ[Unevaluated[x]])&&ExpressionType[x]===Number
 NumSymQ[x_]:=(AtomQ[Unevaluated[x]]&&ExpressionType[Unevaluated[x]]===Number)||
     NumericQ[Unevaluated[x]]
 

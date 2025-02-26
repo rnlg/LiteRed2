@@ -5606,27 +5606,51 @@ FeynGraphPlot::usage="FeynGraphPlot[jGraph[j[...]], \!\(\*
 StyleBox[\"options\",\nFontSlant->\"Italic\"]\)] draws a graph.\nAccepted graph format is a list with each element being {e,{s,n,l}}, where e is an edge (like in 1\[Rule]2), s is the line style, n in the number of dots, l is a label. Many options are common with GraphPlot. Altered/new options are EdgeLabeling,VertexStyle, VertexSize, LabelStyle, EdgeStyle, EdgeLabeling.\nTo understand their format, check their default values with Options[FeynGraphPlot, {VertexStyle, VertexSize, LabelStyle, EdgeStyle, EdgeLabeling}].";
 
 
-Options[FeynGraphPlot]={GraphLayout->"SpringElectricalEmbedding",VertexCoordinateRules->Automatic,EdgeLabeling->False,EdgeStyle->{_->Black},VertexStyle->{_->{Black,Disk[]}},VertexSize->{_->0.01},Background->None,Frame->False,FrameLabel->None,FrameStyle->{},LabelStyle->{},ImageMargins->0,ImagePadding->All,ImageSize->Automatic,ImageSizeRaw->Automatic,LabelStyle->{},Method->Automatic,MultiedgeStyle->Automatic,PackingMethod->Automatic,PlotLabel->None,PlotStyle->Automatic};
-
-
-arrowpos:={#1,#1+#2}&[Mean@#[[{Floor[(Length[#]+1)/2],Ceiling[(Length[#]+1)/2]}]],(#[[-1]]-#[[1]])/1000]&;
+Options[FeynGraphPlot]={GraphLayout->"SpringElectricalEmbedding",VertexCoordinates->Automatic,EdgeLabels->False,EdgeStyle->{_->{Black}},VertexStyle->{_->{Black,Disk[]}},VertexSize->{_->0.003},VertexLabels->None,VertexLabelStyle->{Red},Background->None,Frame->False,FrameLabel->None,FrameStyle->{},LabelStyle->{},ImageMargins->0,ImagePadding->All,ImageSize->Automatic,ImageSizeRaw->Automatic,LabelStyle->Red,(*Method\[Rule]Automatic,*)(*MultiedgeStyle\[Rule]Automatic,*)PackingMethod->Automatic,PlotLabel->None};
 
 
 FeynGraphPlot::err="Don't understand edge format in `1`";
 
 
-FeynGraphPlot[graph_,OptionsPattern[]]:=Module[{verts,erule,esf,estyle=OptionValue[EdgeStyle],vstyle=OptionValue[VertexStyle],vsize=OptionValue[VertexSize],sd,ce,opts,gr=MapAt[Sort[Rule@@#]&,graph,{All,1}],es,m11=$VersionNumber<12},
-gr=MapIndexed[Replace[#,{{e_,s:Except[_List]}:>{e,{s,0,ToString@@#2}},{e_,s:Except[_List],p_}:>{e,{s,0,ToString@@#2<>": "<>ToString[p,TraditionalForm]}},{e_,{s_,n_,k_}}:>{e,{s,n,k}},edge_:>Message[FeynGraphPlot::err,edge]}]&,gr];
-erule={{e_,{s_,n_,k_}}:>((es=Replace[s/.estyle,List[a__]:>Directive[a]];{DeleteCases[es,_Function|(_Symbol?(DownValues[#]=!={}&))|Arrow],
-Arrowheads[Join[Array[{Replace[{e,s},vsize]/2,#/(n+1),Graphics@{Opacity[1],Replace[{e,s},Flatten[{vstyle}]]}}&,n,1],If[m11,{{Replace[First@e,vsize]/2,0,Graphics@{Opacity[1],Replace[First@e,Flatten[{vstyle}]]}},{Replace[Last@e,vsize]/2,1,Graphics@{Opacity[1],Replace[Last@e,Flatten[{vstyle}]]}}},{}]]],Arrow[FirstCase[Reverse[es],_Function|(_Symbol?(DownValues[#]=!={}&)),Identity][#]],If[MemberQ[es,Arrow],Sequence@@{Arrowheads[Automatic],Arrow[arrowpos[#]]},Sequence@@{}],If[TrueQ@OptionValue[EdgeLabeling],Style[Text[k,Mean[#[[Through[{Floor,Ceiling}[(Length[#]+1)/2]]]]]],OptionValue[LabelStyle]],Sequence@@{}]})&)};
-opts=FilterRules[#->OptionValue[#]&/@DeleteCases[First/@Options[FeynGraphPlot],VertexStyle|VertexSize|LabelStyle|EdgeStyle|EdgeLabeling],Options[GraphPlot]];
-verts=Union@@(List@@@gr[[All,1]]);
-If[m11,
-(*Mma <12*)
-GraphPlot[gr,opts,EdgeRenderingFunction->(Replace[{#2,#3},erule][#1]&),DirectedEdges->False,
-VertexRenderingFunction->None,VertexCoordinateRules->OptionValue[VertexCoordinateRules],GraphLayout->OptionValue[GraphLayout]],
-(*Mma >=12*)
-Function[{e,esfl},ReleaseHold[Hold@@{sd[esf[List@@e],Fold[ce[sd[esf[List@@e],#1],#2]&,esfl]]}/.{sd->SetDelayed,ce->CompoundExpression}]]@@@Normal[GroupBy[gr,First->(Replace[#,erule]&)]];GraphPlot[gr[[All,1]],EdgeShapeFunction->((esf[Sort[List@@#2]][#1])&),opts,VertexShape->(#->Graphics[Replace[#,vstyle]]&/@verts),VertexSize->(#->{"Scaled",Replace[#,vsize]}&/@verts),DirectedEdges->False,VertexCoordinates->OptionValue[VertexCoordinateRules],GraphLayout->OptionValue[GraphLayout]]]
+FeynGraphPlot[graph_,OptionsPattern[]]:=Module[{
+estylerules=OptionValue[EdgeStyle],
+vstylerules=OptionValue[VertexStyle],
+vsizerules=OptionValue[VertexSize],
+edgelabels=OptionValue[EdgeLabels],
+verts,vshape,vsize,
+opts=FilterRules[#->OptionValue[#]&/@DeleteCases[First/@Options[FeynGraphPlot],VertexStyle|VertexSize|LabelStyle|EdgeStyle|EdgeLabels],Options[GraphPlot]],
+AnnotateEdge,
+edges
+},
+edges=MapIndexed[Replace[#,{{e:_Rule|_RightArrow,s:Except[_List]}:>{Append[DirectedEdge@@e,s],0,ToString@@#2},{e:_Rule|_RightArrow,s:Except[_List],p_}:>{Append[DirectedEdge@@e,s],0,ToString[p,TraditionalForm]},{e:_Rule|_RightArrow,{s_,n_,k_}}:>{Append[DirectedEdge@@e,s],n,k}}]&,graph];
+(***************** AnnotatedEdge ********************)
+AnnotateEdge[e_,dots_:0,label_:""]:=Module[{
+arrow=Graphics[{Polygon[{{-1,0},{-2,-1},{2,0},{-2,1}}]}],
+estyle=Replace[e[[3]],estylerules],
+dotshape,
+dotsize,
+specials,decoration,shape,text},
+{dotshape,dotsize}={Graphics[DeleteCases[#,_?NumericQ]],FirstCase[#,_?NumericQ,0]}&[Flatten[{Replace[e,vstylerules],Replace[e,vsizerules]}]];
+If[estyle===None,Return[Annotation[e,EdgeShapeFunction->None]]];
+specials=Cases[estyle,_Function|(_Symbol?(DownValues[#]=!={}&))|Arrow];
+estyle=DeleteCases[estyle,_Function|(_Symbol?(DownValues[#]=!={}&))|Arrow];
+decoration=Array[{dotsize,#/(dots+1),dotshape}&,{dots}];
+If[MemberQ[specials,Arrow],specials=DeleteCases[specials,Arrow];
+decoration=Riffle[Array[{dotsize,(#-1/2)/(dots+1),arrow}&,{dots+1}],decoration]];
+shape=Replace[specials,{{}->Identity,{f__}:>f}];
+text=If[edgelabels,Function[pts,Text[Style[label,Medium],(pts[[Ceiling[Length[pts]/2]]]+pts[[-Ceiling[Length[pts]/2]]])/2+0.1*Reverse[(pts[[-1]]-pts[[1]])*{1,-1}]]],{}&];
+Annotation[e[[;;2]],EdgeShapeFunction->Function[{pts,e1},Join[#1,{Arrowheads[#2],Arrow[#3[pts]],{#4[pts]}}]]]&[estyle,decoration,shape,text]
+];
+(**************** /AnnotatedEdge ********************)
+edges=AnnotateEdge@@@edges;
+verts=Union[Sequence@@@edges[[All,1,;;2]]];
+(*Annotation[#
+,VertexShape->Graphics[DeleteCases[Flatten[{Replace[#,vstylerules]}],_?NumericQ]]
+,VertexSize\[Rule]{"Scaled",2*FirstCase[Flatten[{Replace[#,vstylerules]}],_?NumericQ,0]}
+]&/@;*)(*Unfortunately, vertex annotation works only for Graph,but Graph writes all parallel edges of the same type with the same style (so, incorrectly drawing dots on them)*)
+vshape=(#->Graphics[DeleteCases[Flatten[{Replace[#,vstylerules]}],_?NumericQ]])&/@verts;
+vsize=(#->{"Scaled",2*FirstCase[Flatten[{Replace[#,vstylerules],Replace[#,vsizerules]}],_?NumericQ,0]})&/@verts;
+GraphPlot[edges,Sequence@@opts,VertexShape->vshape,VertexSize->vsize]
 ];
 
 

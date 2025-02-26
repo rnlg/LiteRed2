@@ -148,6 +148,9 @@ TypesCacheFunction=(AppendTo[TypesClearList,#1];#1=#2)&*)
 ExpressionType[expr_]:=First[TypeX[Unevaluated[expr]]];
 
 
+ExpressionType[expr_,pat_]:=MatchQ[ExpressionType[expr],pat];
+
+
 (* ::Subsection:: *)
 (*TypeBelowQ*)
 
@@ -199,10 +202,12 @@ SetAttributes[InitFunction,HoldFirst];InitFunction[h_,f_Function]:=ATR[h,f[-1],-
 
 SetAttributes[Declare,HoldAll];
 Declare[x_List,t_]:=Scan[Declare[#,t]&,Map[Unevaluated,Hold[x],{2}],{2}];
+(*Declare[x_\[LeftArrow]t_]:=Declare[x,t];*)
 Declare::info="The variable `1` is declared as `2`";
 Off[Declare::info];
 Declare[x_,t_]:=(TypeX[Unevaluated[a:x]]^={t,a};InitFunction[x,t];(*(Unset/@#;TypesClearList=Complement[TypesClearList,#])&[Select[TypesClearList,MemberQ[#,Unevaluated[x],Infinity]&]];*)
 Message[Declare::info,HoldForm[x],t])
+(*Declare[x_\[LeftArrow]t_,r__]:=(Declare[x,t];Declare[r]);*)
 Declare[x_,t_,r__]:=(Declare[x,t];Declare[r]);
 
 

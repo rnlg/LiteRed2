@@ -111,7 +111,11 @@ Vectors`Private`VectorsPrint["****************",Style["Vectors v"<>ToString[$Vec
 Author:Roman N.Lee,Budker Institute of Nuclear Physics,Novosibirsk.\n\
 Vectors package defines several types:Vector,VectorIndex,TComponent.\n\
 Use Declare[{v1,v2,\[Ellipsis]},Vector] to declare variables v1,v2,\[Ellipsis] as vectors.\n\
+Use Declare[{\[Mu],\[Nu],\[Ellipsis]},VectorIndex] to declare variables \[Mu],\[Nu],\[Ellipsis] as vector indices.\n\
 See ?Vectors`* for a list of functions."];
+
+
+ParametricRepresentation::usage="ParametricRepresentation[numerator,{{D1,n1},{D2,n2},...},{l1,...}] constructs a parametric representation for the loop integral with given numerator and denominator D1^n1*D2*n2*...\nParametricRepresentation[expr,{l1,...},Contours->i0] does the same first automatically finding and normalizing denominators according to i0 prescription.\nOptions:\n    Sign->Plus|Minus --- use Plus for Euclidean case and Minus for pseudoTuclidean case.\n    Method->\"UF\"|\"G\" --- determines whether to use conventional Feynman representation (UF) or Lee-Pomeransky representation (G)\n    Contours->i0 (variable) --- determines the variable which ins used for automatic detection of denominators in the second form.";
 
 
 (* ::Section:: *)
@@ -119,20 +123,6 @@ See ?Vectors`* for a list of functions."];
 
 
 Begin["`Private`"]
-
-
-VectorsPrint["Be careful:
-I. If \!\(\*
-StyleBox[\"v\",\nFontWeight->\"Bold\"]\)\!\(\*
-StyleBox[\" \",\nFontWeight->\"Bold\"]\)is declared as \!\(\*
-StyleBox[\"Vector\",\nFontWeight->\"Bold\"]\) and \!\(\*
-StyleBox[\"\[Mu]\",\nFontWeight->\"Bold\"]\) as a \!\(\*
-StyleBox[\"VectorIndex\",\nFontWeight->\"Bold\"]\)\*
-StyleBox[\(\!\(\*
-StyleBox[\" \",\nFontWeight->\"Bold\"]\) \)]then the notation \!\(\*SuperscriptBox[
-StyleBox[\"v\",\nFontWeight->\"Bold\"], 
-StyleBox[\"\[Mu]\",\nFontWeight->\"Bold\"]]\) denotes not the power but the contravariant component.
-II. Be sure to use VIContract[...] to avoid ambiguities in contraction of indices (it is also entered as \[LeftAngleBracket]...\[RightAngleBracket] )"];
 
 
 (* ::Section:: *)
@@ -377,20 +367,18 @@ MetricTensor[{},{a__}]/;!OrderedQ[{a}]:=MetricTensor[{},Sort[{a}]];
 MetricTensor/:HoldPattern[MetricTensor[{m1___,n_?VecIndQ,m2___},k1_List]*MetricTensor[k2_List,{m3___,n_,m4___}]]:=MetricTensor[Join[{m1,m2},k2],Join[k1,{m3,m4}]]
 
 
+Declare[MetricTensor[],Number];
+
+
 (* ::Subsubsection:: *)
 (*SetDim*)
 
 
-SetDim[n_Symbol]:=(Declare[n,Number];MetricTensor[]=n;
-VectorsPrint["SetDim: The dimension is set to ",n];)
-SetDim[n_]:=(MetricTensor[]=n;VectorsPrint["SetDim: The dimension is set to ",n];)
+SetDim[n_]:=(Declare[#,Number]&[Variables[n]];MetricTensor[]=n;VectorsPrint["SetDim: The dimension is set to ",n];)
 SetDim[]:=(MetricTensor[]=.;)
 
 
 MetricTensor[{i_?VecIndQ},{i_}]=MetricTensor[]
-
-
-SetDim[Global`\[ScriptCapitalD]];
 
 
 (* ::Subsubsection:: *)
@@ -544,7 +532,7 @@ Options[DummyEliminate]={RemoveDummies->False};
 
 VErule2:={SubIndex[x_?VecQ,n_?VecIndQ]*SupIndex[y_?VecQ,n_]:>(AppendTo[ni,n];sp[x,y]),HoldPattern[MetricTensor[{m1___,n_?VecIndQ,m2___},k1_List]]*HoldPattern[MetricTensor[k2_List,{m3___,n_,m4___}]]:>MetricTensor[Join[{m1,m2},k2],Join[k1,{m3,m4}]],
 (HoldPattern[MetricTensor[{n_,m_}|{m_,n_},{}]]*x_):>(AppendTo[ni,n];UpperIndex[x,n->m])/;TypeBelowQ[x,HoldPattern[TComponent[{___},{___,n,___},_]]],(HoldPattern[MetricTensor[{m_},{n_}]]*x_):>(AppendTo[ni,n];UpperIndex[x,n->m])/;TypeBelowQ[x,HoldPattern[TComponent[{___,n,___},{___},_]]],(HoldPattern[MetricTensor[{},{n_,m_}|{m_,n_}]]*x_):>(AppendTo[ni,n];LowerIndex[x,n->m])/;TypeBelowQ[x,HoldPattern[TComponent[{___,n,___},{___},_]]],(HoldPattern[MetricTensor[{n_},{m_}]]*x_):>(AppendTo[ni,n];LowerIndex[x,n->m])/;TypeBelowQ[x,HoldPattern[TComponent[{___},{___,n,___},_]]]};
-(*f={#,","}&;   *)         
+DummyEliminate[x_List,opt:OptionsPattern[]]:=DummyEliminate[#,opt]&/@x;
 DummyEliminate[x_Plus,opt:OptionsPattern[]]:=DummyEliminate[#,opt]&/@x;
 DummyEliminate[x_,opt:OptionsPattern[]]:=ne[x,Alternatives@@Dummies[x],OptionValue[RemoveDummies]]
 ne[x_,Alternatives[],opt_]:=x;
@@ -629,30 +617,52 @@ HoldPattern[Partial[x:(y_[z__?VecQ])?TCompQ,v_]]:=ReleaseHold[Hold[VGrad[y,{},{x
 (*DAverage*)
 
 
-DAverage::invalid="Don't know how to average `1` over `2`. If the exression has undistributed  scalar products, you should try first LFDistribute[`1`,sp].";
+DAverage::invalid="Don't know how to average `1` over `2`."
 DAverage[a_,p_List]:=Fold[DAverage,a,p];
+
+
 DAverage[expr_,v_?VecVarQ]:=Module[
-{lf,va,av,vav,res},
+{lf,va,av,vav,res,ex,d=MetricTensor[]},
+ex=expr/.{spv_sp?(!FreeQ[#,v]&):>LFDistribute[spv,sp]};
 vav[]=1;
 vav[x__]/;OddQ@Length@{x}=0;
-vav[sp[v,x_],sp[v,y_]]:=(sp[v,v]sp[x,y])/MetricTensor[];
-vav[(si:SubIndex|SupIndex)[v,x_],sp[v,y_]]:=(sp[v,v]si[y,x])/MetricTensor[];
-vav[sp[v,y_],(si:SubIndex|SupIndex)[v,x_]]:=(sp[v,v]si[y,x])/MetricTensor[];
-vav[SubIndex[v,x_],SubIndex[v,y_]]:=(sp[v,v]MetricTensor[{},{x,y}])/MetricTensor[];
-vav[SupIndex[v,x_],SubIndex[v,y_]]:=(sp[v,v]MetricTensor[{x},{y}])/MetricTensor[];
-vav[SubIndex[v,x_],SupIndex[v,y_]]:=(sp[v,v]MetricTensor[{y},{x}])/MetricTensor[];
-vav[SupIndex[v,x_],SupIndex[v,y_]]:=(sp[v,v]MetricTensor[{x,y},{}])/MetricTensor[];
-vav[x_,y__]:=MetricTensor[]/(MetricTensor[]+Length@{y}-1)*Sum[vav[x,{y}[[i]]]*vav@@Delete[{y},{i}],{i,Length@{y}}];
-va[x__]:=vav@@Inner[Table[#1,{#2-1}]&,lf,{x},Join];
-If[!And@@((MatchQ[Part[{expr},##]&@@MapAt[0&,#,{-1}],SupIndex|SubIndex|sp]&)/@Position[{expr},v]),
-Message[DAverage::invalid,expr,v];Return[$Failed]];
-lf=Union@Cases[{expr},(sp|SupIndex|SubIndex)[v,_]|sp[_,v],\[Infinity]]/.sp[v,v]->Sequence[];
-If[lf=={},Return[expr]];
-If[!PolynomialQ[expr,lf],Message[DAverage::invalid,expr,v];Return[$Failed]];
-res=Plus@@Flatten[Array[va,Dimensions[#]]*#]&[CoefficientList[expr,lf]];
+vav[sp[v,x_],sp[v,y_]]:=(sp[v,v]sp[x,y])/d;(*sp\[Times]sp*)
+vav[(si:SubIndex|SupIndex)[v,x_],sp[v,y_]]:=(sp[v]si[y,x])/d;vav[sp[v,y_],(si:SubIndex|SupIndex)[v,x_]]:=(sp[v]si[y,x])/d;(*sp\[Times]si*)
+vav[x:(SubIndex|SupIndex)[v,_],y:(SubIndex|SupIndex)[v,_]]:=
+MetricTensor[Cases[{x,y},SupIndex[_,i_]:>i],Cases[{x,y},SubIndex[_,i_]:>i]]sp[v]/d ;(*si\[Times]si*)
+vav[x_,y__]:=d/(d+Length@{y}-1)*Sum[vav[x,{y}[[i]]]*vav@@Delete[{y},{i}],{i,Length@{y}}];
+lf=DeleteDuplicates@Cases[{ex},(sp|SupIndex|SubIndex)[v,_]|sp[_,v],All]/.sp[v,v]->Sequence[];
+If[lf=={},Return[ex]];
+If[!PolynomialQ[ex,lf],Message[DAverage::invalid,expr,v];Return[$Failed]];
+res=Plus@@(#2*vav@@Flatten[MapThread[ConstantArray,{lf,#1}]]&@@@CoefficientRules[ex,lf]);
 If[!FreeQ[res,_vav],Message[DAverage::invalid,expr,v];Return[$Failed]];
 res
-]
+];NotebookSave[]
+
+
+(* ::Input:: *)
+(*DAverage[expr_,v_?VecVarQ]:=Module[*)
+(*{lf,va,av,vav,res},*)
+(*vav[]=1;*)
+(*vav[x__]/;OddQ@Length@{x}=0;*)
+(*vav[sp[v,x_],sp[v,y_]]:=(sp[v,v]sp[x,y])/MetricTensor[];*)
+(*vav[(si:SubIndex|SupIndex)[v,x_],sp[v,y_]]:=(sp[v,v]si[y,x])/MetricTensor[];*)
+(*vav[sp[v,y_],(si:SubIndex|SupIndex)[v,x_]]:=(sp[v,v]si[y,x])/MetricTensor[];*)
+(*vav[SubIndex[v,x_],SubIndex[v,y_]]:=(sp[v,v]MetricTensor[{},{x,y}])/MetricTensor[];*)
+(*vav[SupIndex[v,x_],SubIndex[v,y_]]:=(sp[v,v]MetricTensor[{x},{y}])/MetricTensor[];*)
+(*vav[SubIndex[v,x_],SupIndex[v,y_]]:=(sp[v,v]MetricTensor[{y},{x}])/MetricTensor[];*)
+(*vav[SupIndex[v,x_],SupIndex[v,y_]]:=(sp[v,v]MetricTensor[{x,y},{}])/MetricTensor[];*)
+(*vav[x_,y__]:=MetricTensor[]/(MetricTensor[]+Length@{y}-1)*Sum[vav[x,{y}[[i]]]*vav@@Delete[{y},{i}],{i,Length@{y}}];*)
+(*va[x__]:=vav@@Inner[Table[#1,{#2-1}]&,lf,{x},Join];*)
+(*If[!And@@((MatchQ[Part[{expr},##]&@@MapAt[0&,#,{-1}],SupIndex|SubIndex|sp]&)/@Position[{expr},v]),*)
+(*Message[DAverage::invalid,expr,v];Return[$Failed]];*)
+(*lf=Union@Cases[{expr},(sp|SupIndex|SubIndex)[v,_]|sp[_,v],\[Infinity]]/.sp[v,v]->Sequence[];*)
+(*If[lf=={},Return[expr]];*)
+(*If[!PolynomialQ[expr,lf],Message[DAverage::invalid,expr,v];Return[$Failed]];*)
+(*res=Plus@@Flatten[Array[va,Dimensions[#]]*#]&[CoefficientList[expr,lf]];*)
+(*If[!FreeQ[res,_vav],Message[DAverage::invalid,expr,v];Return[$Failed]];*)
+(*res*)
+(*]*)
 
 
 (* ::Subsubsection:: *)
@@ -716,6 +726,62 @@ GramMatrix[v__]=Outer[sp,{v},{v}];
 
 
 GramDeterminant[v__]:=Det[Outer[sp,{v},{v}]]
+
+
+(* ::Subsection:: *)
+(*ParametricRepresentation*)
+
+
+Options[ParametricRepresentation]={Sign->Plus,Variables->"x",Method->"UF",Contours->None};
+ParametricRepresentation[numerator_,denfl:{{_,Except[_Integer?NonPositive]}..},lms_List,OptionsPattern[]]:=Module[
+{dens,ns,k,xs,
+num=numerator,den,
+d=MetricTensor[],
+n,l=Length[lms],
+a,b,c,u,f,\[Mu],i,
+\[Sigma]=Replace[OptionValue[Sign],{Plus->1,Minus->-1}],
+res,
+xn=OptionValue[Variables]
+},
+If[VecQ@num,Declare[\[Mu],VectorIndex];num=SupIndex[num,\[Mu]]];
+{dens,ns}=Transpose[denfl];
+n=Plus@@ns;k=Length[dens];
+Declare[#,Number]&[xs=(i=0;Table[While[ToExpression["ValueQ@"<>xn<>ToString[++i]]];Symbol[xn<>ToString[i]],{k}])];
+den=Collect[LFDistribute[dens . xs,sp],_sp];
+u=1;
+res=Catch[Scan[Function[l,
+b=(D[den,l]/2/.{Derivative[0,1][sp]:>(#1&),Derivative[1,0][sp]:>(#2&)});
+a=D[b,l];If[a===0,Throw[0]];
+b=b/.l->0;
+den=Collect[LFDistribute[den/.l->l-b/a,_sp]/.l->0,_sp,Together];
+num=Collect[DAverage[num/.l->l-b/a,{l}]/.sp[l,l]->\[Sigma] sp[l,l]/a,_sp,Together];
+u=Together[\[Sigma] a u]
+]
+,Flatten[{lms}]];
+f=Together[u den];Together[Plus@@(#2*(Times@@Pochhammer[d/2,#1]/ Pochhammer[n-l d/2-Plus@@#1,Plus@@#1] Together[\[Sigma] f/u]^(Plus@@#1))&@@@Together[CoefficientRules[num/.SupIndex[x_,\[Mu]]:>x,sp/@Flatten[{lms}]]])]];
+
+{Replace[OptionValue[Method],{"UF"->
+Times@@(xs^(ns-1)) Gamma[Together[n-l d/2]]/Times@@(Gamma/@ns) f^Expand[l d/2-n]/u^Expand[(l+1) d/2-n] res,
+"G"->(i=0;While[!PolynomialQ[res,xs],i++;res=Together[res u]];
+Times@@(xs^(ns-1)) Gamma[d/2+i]/(Times@@(Gamma/@ns)Gamma[Together[(d/2+i)(l+1)-n-l i]]) (f+u)^(-d/2-i) res
+)
+}],xs}]
+
+
+ParametricRepresentation::i0="Please specify i0 prescription in denominators and use option Normalize->i0 to proceed.";
+ParametricRepresentation[ex_,lms_,opts:OptionsPattern[]]:=Module[{num,dens,s,sps,a,de,c,i0},
+s=Replace[OptionValue[Sign],{Plus->+1,Minus->-1}];
+If[(i0=OptionValue[Contours])===None,Message[ParametricRepresentation::i0];Return[$Failed]];
+{num,dens}=Through[{Numerator,Denominator}[Together[ex]]];
+dens=FactorList[dens];
+num/=Times@@Power@@@Cases[dens,_?(FreeQ[#,Alternatives@@lms]&)];
+dens=Function[{d,k},
+If[0===(c=s Coefficient[d,i0]),Message[ParametricRepresentation::i0];Return[$Failed]];
+num/=c^k;{d/c,k}
+]@@@DeleteCases[dens,_?(FreeQ[#,Alternatives@@lms]&)];
+(*Print[HoldForm[ParametricRepresentation[##]]&[num/.i0->0,dens/.i0->0,lms,opts]];*)
+ParametricRepresentation[num/.i0->0,dens/.i0->0,lms,opts]
+]
 
 
 (* ::Subsection:: *)
