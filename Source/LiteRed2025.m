@@ -28,9 +28,9 @@ LiteRed`Private`RNLneeds[context_String,files:{___String}]:=Quiet[Needs[context,
 
 
 Types`TypesLog=False;
-LiteRed`Private`RNLneeds["Types`",{"RNL`Types`",LiteRed`$LiteRedHomeDirectory<>"RNL/Types.m"}];
-LiteRed`Private`RNLneeds["LinearFunctions`",{"RNL`LinearFunctions`",LiteRed`$LiteRedHomeDirectory<>"RNL/LinearFunctions.m"}];
-LiteRed`Private`RNLneeds["Numbers`",{"RNL`Numbers`",LiteRed`$LiteRedHomeDirectory<>"RNL/Numbers.m"}];Vectors`VectorsLog=False;LiteRed`Private`RNLneeds["Vectors`",{"RNL`Vectors`",LiteRed`$LiteRedHomeDirectory<>"RNL/Vectors.m"}];
+LiteRed`Private`RNLneeds["Types`",{"RNL`Types`",FileNameJoin[{LiteRed`$LiteRedHomeDirectory,"RNL","Types.m"}]}];
+LiteRed`Private`RNLneeds["LinearFunctions`",{"RNL`LinearFunctions`",FileNameJoin[{LiteRed`$LiteRedHomeDirectory,"RNL","LinearFunctions.m"}]}];
+LiteRed`Private`RNLneeds["Numbers`",{"RNL`Numbers`",FileNameJoin[{LiteRed`$LiteRedHomeDirectory,"RNL","Numbers.m"}]}];Vectors`VectorsLog=False;LiteRed`Private`RNLneeds["Vectors`",{"RNL`Vectors`",FileNameJoin[{LiteRed`$LiteRedHomeDirectory,"RNL","Vectors.m"}]}];
 
 
 
@@ -1194,17 +1194,17 @@ If[t=!=Alternatives[],
 (t1=ToString[HoldForm@@(First@#)];t2=Last@MapAt[Hold,#,{2}];
 If[StringMatchQ[t1,t],
 If[
-(dir=!=BasisDirectory[nm]||!MatchQ[t2,Hold[Get[BasisDirectory[nm]<>#]]&["/"<>t1]])&&(!FileExistsQ[dir<>"/"<>t1]||OptionValue[Replace]),
-If[FileExistsQ[dir<>"/"<>t1],Message[DiskSave::overwrite,t1]];
+(dir=!=BasisDirectory[nm]||!MatchQ[t2,Hold[Get[FileNameJoin[{BasisDirectory[nm],#}]]]&[t1]])&&(!FileExistsQ[FileNameJoin[{dir,t1}]]||OptionValue[Replace]),
+If[FileExistsQ[FileNameJoin[{dir,t1}]],Message[DiskSave::overwrite,t1]];
 If[Check[If[dir=!=BasisDirectory[nm],
-Put[First@t2,dir<>"/"<>t1],
-ReleaseHold[ReplacePart[Hold[Put[##]],{1,1,0}->Unevaluated]]&[t2,dir<>"/"<>t1]];True,False],
-ToExpression[ToString[nm]<>"/:"<>t1<>":=Get[BasisDirectory["<>ToString[nm]<>"]<>"<>"\"/"<>t1<>"\"]"]
+Put[First@t2,FileNameJoin[{dir,t1}]],
+ReleaseHold[ReplacePart[Hold[Put[##]],{1,1,0}->Unevaluated]]&[t2,FileNameJoin[{dir,t1}]]];True,False],
+ToExpression[ToString[nm]<>"/:"<>t1<>":=Get[FileNameJoin[{BasisDirectory["<>ToString[nm]<>"],"<>"\""<>t1<>"\"}]]"]
 ]
 ];
 ])&/@UpValues[nm]];
 If[tb,
-t3=dir<>"/"<>ToString[nm];
+t3=FileNameJoin[{dir,ToString[nm]}];
 BasisDirectory[nm]=dir;
 If[!FileExistsQ[t3]||OptionValue[Replace],If[FileExistsQ[t3],Message[DiskSave::overwrite,t3]];Put[Unevaluated[BasisDirectory[nm]=StringDrop[DirectoryName[$Input],-1]],t3];(* modified 21.12.2012 *)(*PutAppend[Definition[nm],t3]*)
 PutAppendUpValues[nm,t3](*/modified 21.12.2012 *);If[ValueQ[nm::usage],PutAppend[Unevaluated[nm::usage=#;Information[nm,LongForm->False];],t3]&[nm::usage]];PutAppend[Unevaluated[CheckDefs[nm]],t3];PutAppend[Unevaluated[BasisDirectory[nm]],t3],
@@ -1859,8 +1859,8 @@ vs=OptionValue[Append],
 tc=OptionValue[TimeConstrained]/.False|None->Infinity
 },
 fn=StringReplacePart[ToString[jsec],"jsFPIBP",{1,2}];
-If[TrueQ[rcv]&&FileExistsQ[BasisDirectory[nm]<>"/"<>fn],
-(nm /: jsFPIBP[nm,inds] := Get[BasisDirectory[nm]<>"/"<>#])&[fn],
+If[TrueQ[rcv]&&FileExistsQ[FileNameJoin[{BasisDirectory[nm],fn}]],
+(nm /: jsFPIBP[nm,inds] := Get[FileNameJoin[{BasisDirectory[nm],#}]])&[fn],
 (*Generate*)
 {G,xs}={#1+#2,#3}&@@FeynParUF[jsec,NamingFunction->(Table[Unique["x"],{#}]&),Function->False];
 dG=D[G,#]&/@xs;
@@ -1883,7 +1883,7 @@ Qk=CoefficientRules[syz,xs];Q=Last@Qk;Qk=Most@Qk;
 Plus@@(Flatten@{MapIndexed[Function[{cr,i},(#2*Pochhammer[(L+1)\[Nu]-Plus@@ns,1-Plus@@#1]Times@@Pochhammer[ns,#1](jf[ns+#1-b[[First@i]]]))&@@@cr],Qk],
 (\[Nu]*#2*Pochhammer[(L+1)\[Nu]-Plus@@ns,-Plus@@#1]Times@@Pochhammer[ns,#1](jf[ns+#1]))&@@@Q
 })]/@syz/.Thread[ns->Array[Slot,Length@ns]]]/.f->Function;
-(Put[f, BasisDirectory[nm]<>"/"<>#]; nm /: jsFPIBP[nm, inds] := Get[BasisDirectory[nm]<>"/"<>#])&[fn];Remove/@xs;Remove/@ns;
+(Put[f,FileNameJoin[{ BasisDirectory[nm],#}]]; nm /: jsFPIBP[nm, inds] := Get[FileNameJoin[{BasisDirectory[nm],#}]])&[fn];Remove/@xs;Remove/@ns;
 ];
 LiteRedPrint["Generated IBP identities in parametric representation for "<>ToString[jsec]<>"\n    "<>fn<>" \[LongDash] IBP identities in parametric representation."];
 ]
@@ -2381,21 +2381,21 @@ init=initdb;clean=cleandb;submit=submiteqs;solve=solveeqs;collect=Collectj[#,sf]
 constr=And@@MapThread[Replace[#1,{1->#2>=1,0->#2<=0}]&,{corner,indices}];
 smartReduce[expr_]:=SmartReduce[expr,indices,corner];
 ptrnrule=Inner[#1->Pattern[#1,_]?#2&,indices,(corner/.{1->Positive,0->NonPositive}),List];
-If[Not@TrueQ@Not@disksave&&diskreco&&FileExistsQ[disksave<>"/"<>file],
+If[Not@TrueQ@Not@disksave&&diskreco&&FileExistsQ[FileNameJoin[{disksave,file}]],
 (*Modified 18.12.2020*)
 Block[{Last=Identity},
-(*(*Had we not worried for backward compatibility, we could have used*) {jsorder,jRulesF}=Get[disksave<>"/"<>file]; *)
-jRulesF=Get[disksave<>"/"<>file];If[MatchQ[jRulesF,{_?MatrixQ,_List}],{jsorder,jRulesF}=jRulesF]
+(*(*Had we not worried for backward compatibility, we could have used*) {jsorder,jRulesF}=Get[FileNameJoin[{disksave,file}]]; *)
+jRulesF=Get[FileNameJoin[{disksave,file}]];If[MatchQ[jRulesF,{_?MatrixQ,_List}],{jsorder,jRulesF}=jRulesF]
 ];(*/Modified 18.12.2020*)If[jRulesF==="reserved",LiteRedPrint["Sector ",jsect," is likely being solved by another kernel. Execute SolvejSector["<>ToString[jsect]<>",DiskRecover\[Rule]True] later to update MIs["<>ToString[nm]<>"]."];Return[Indeterminate],
 misFound=j[nm,##]&@@indices/.#&/@{ToRules[LogicalExpand@Reduce[Not[Or@@jRulesF[[All,1,2]]]&&constr(*(*Deleted 25.03.2018*)sectcond(*/Deleted 25.03.2018*)*),Integers]]}];
-If[disksave===BasisDirectory[nm],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[BasisDirectory["<>ToString[nm]<>"]<>\"/"<>file<>"\"]"],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[\""<>disksave<>"/"<>file<>"\"]"]];(*Modified 18.12.2020*)If[TrueQ[jsorder]||jsOrder[nm,ns]===jsorder,
+If[disksave===BasisDirectory[nm],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[FileNameJoin[{BasisDirectory["<>ToString[nm]<>"],\""<>file<>"\"}]]"],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[FileNameJoin[{\""<>disksave<>"\",\""<>file<>"\"}]]"]];(*Modified 18.12.2020*)If[TrueQ[jsorder]||jsOrder[nm,ns]===jsorder,
 LiteRedPrint["Sector ",jsect," is recovered from file."],
 jsOrder[nm,ns]=jsorder;
 LiteRedPrint["Sector ",jsect," is recovered from file. ",Style["jsOrder has changed!",Bold]]
 ];(*/Modified 18.12.2020*)
 ,
 (**)
-Catch[throw=False;tcf[LiteRedPrint["Sector ",jsect];If[Not[TrueQ@Not@disksave||FileExistsQ[disksave<>"/"<>file]],If[!DirectoryQ[disksave],CreateDirectory[disksave];Message[DiskSave::dir,disksave]];Put["reserved",disksave<>"/"<>file];reserved=True];
+Catch[throw=False;tcf[LiteRedPrint["Sector ",jsect];If[Not[TrueQ@Not@disksave||FileExistsQ[FileNameJoin[{disksave,file}]]],If[!DirectoryQ[disksave],CreateDirectory[disksave];Message[DiskSave::dir,disksave]];Put["reserved",FileNameJoin[{disksave,file}]];reserved=True];
 (*Prepare to solution*)
 jSector[nm]=jsect;(*set default sector for proper ordering*)
 jRulesF={};
@@ -2497,7 +2497,7 @@ startps=(indices/.#)&/@cases;
 If[numeric&&Length[misFound]+Total[Length/@noRules]+Length[cases]<=onmis,Break[]];
 pat1=(j[nm,##]&@@(Pattern[#,Blank[]]&/@indices))/;Evaluate[RulesToCondition[cases]];
 ,
-PutAppend[jRules1,BasisDirectory[nm]<>StringReplace[ToString[jsect],"js["->"/jBadRules["]];
+PutAppend[jRules1,FileNameJoin[{BasisDirectory[nm],StringReplace[ToString[jsect],"js["->"jBadRules["]}]];
 (*LiteRedPrintTemporary[Style["Was not able to construct applicability condition for "<>ToString[ruleFound[[1]]]<>"\[Ellipsis]",Tiny]];*)
 except=except|ruleFound[[1]];
 ];
@@ -2528,12 +2528,12 @@ If[$LiteRedMonitor,NotebookDelete[moni]];(*(*Deleted 10.06.2021*)numeric=True;(*
 NotebookDelete/@indicoutput;
 If[usefer,Quiet[DeleteFile[dbase[[1]]]]];
 If[throw,
-If[reserved,DeleteFile[disksave<>"/"<>file]];
+If[reserved,DeleteFile[FileNameJoin[{disksave,file}]]];
 Quiet[NotebookDelete[moni]];
 Return[$Failed]];
-If[TrueQ[Not[disksave]],(#1/:jRules[##]=jRulesF),If[!DirectoryQ[disksave],CreateDirectory[disksave];Message[DiskSave::dir,disksave]];If[!FileExistsQ[disksave<>"/"<>file]||OptionValue[Replace],If[!reserved&&FileExistsQ[disksave<>"/"<>file],Message[DiskSave::overwrite,disksave<>"/"<>file]];
-Put[Unevaluated[Last[{#1,#2}]],#3]&[jsOrder@@jsect,jRulesF,disksave<>"/"<>file];
-If[disksave===BasisDirectory[nm],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[BasisDirectory["<>ToString[nm]<>"]<>\"/"<>file<>"\"]"],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[\""<>disksave<>"/"<>file<>"\"]"]]]]&@@jsect
+If[TrueQ[Not[disksave]],(#1/:jRules[##]=jRulesF),If[!DirectoryQ[disksave],CreateDirectory[disksave];Message[DiskSave::dir,disksave]];If[!FileExistsQ[FileNameJoin[{disksave,file}]]||OptionValue[Replace],If[!reserved&&FileExistsQ[FileNameJoin[{disksave,file}]],Message[DiskSave::overwrite,FileNameJoin[{disksave,file}]]];
+Put[Unevaluated[Last[{#1,#2}]],#3]&[jsOrder@@jsect,jRulesF,FileNameJoin[{disksave,file}]];
+If[disksave===BasisDirectory[nm],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[FileNameJoin[{BasisDirectory["<>ToString[nm]<>"],\""<>file<>"\"}]]"],ToExpression[ToString[nm]<>"/:"<>file<>":=Get[FileNameJoin[{\""<>disksave<>"\",\""<>file<>"\"}]]"]]]]&@@jsect
 ];
 Quiet[nm/:ToMyMIs[nm]=.];
 If[level>=0,
@@ -2557,7 +2557,7 @@ FrontEndTokenExecute["Clear"]]
 ];
 If[Not@TrueQ@Not@BasisDirectory[nm],Quiet[DiskSave[nm,Save->"Basis"]]];Length@misFound,
 (*Cleaning up*)
-If[reserved,DeleteFile[disksave<>"/"<>file]];Abort[]]]
+If[reserved,DeleteFile[FileNameJoin[{disksave,file}]]];Abort[]]]
 
 
 (*WhenBad*)WhenBad[expr_,indices_,corner_,parameters_]:=Module[{jl=(*Added 27.11.2019*)CollectjList[expr](*/Added 27.11.2019*),dconds,nconds,pars,p,res},
@@ -2616,7 +2616,7 @@ cleandb[dbase_,vars_]:=(ToExpression[dbase[[1]]<>"={0\[Rule]0};"];dbase[[-1]]={}
 SetAttributes[fcleandb,HoldAll];
 fcleandb[dbase_,vars_]:=Module[{dbname=First@dbase},
 OpenWrite[dbname];
-WriteString[dbname,Fermatica`Private`var2str[Array["v"<>ToString[#]&,{Length@vars}]]<>"\n\n"<>ReadString[$LiteRedHomeDirectory<>"FermatCode/sol"]];
+WriteString[dbname,Fermatica`Private`var2str[Array["v"<>ToString[#]&,{Length@vars}]]<>"\n\n"<>ReadString[FileNameJoin[{$LiteRedHomeDirectory,"FermatCode","sol"}]]];
 Close[dbname];
 dbase[[2]]=vars;
 dbase[[-1]]={};
@@ -2776,10 +2776,10 @@ orrs=Replace[Flatten@{orrs/.Automatic->{IBP[Symbol$basis],LI[Symbol$basis]}},x:I
 (*Recovering from disk*)
 And$indicesInSector=Inner[#2[#1]&,List$indices,(List$corner/.{1->(GreaterEqual[#,1]&),0->(LessEqual[#,0]&)}),And];ptrnrule=Inner[#1->Pattern[#1,_]?#2&,List$indices,(List$corner/.{1->Positive,0->NonPositive}),List];
 (*Added 31.05.2016*)sectp=js[Symbol$basis,##]&@@Replace[Transpose[{PowerShifts[Symbol$basis],List$corner}],{{0,x_}:>x,_:>0|1},{1}](*/Added 31.05.2016*);
-If[Not@TrueQ@Not@ds&&dr&&FileExistsQ[ds<>"/"<>String$jRulesFilename],jRulesF=Get[ds<>"/"<>String$jRulesFilename];If[jRulesF==="reserved",LiteRedPrint["The sector ",js$sector," is likely being solved by another kernel. Execute SolvejSectorTag["<>ToString[js$sector]<>",DiskRecover\[Rule]True] later to update MIs["<>ToString[Symbol$basis]<>"]."];Return[Indeterminate],List$misFound=j[Symbol$basis,##]&@@List$indices/.#&/@{ToRules[LogicalExpand@Reduce[Not[Or@@jRulesF[[All,1,2]]]&&And$indicesInSector,Integers]]};If[!FreeQ[List$misFound,Alternatives@@List$indices],Message[SolvejSectorTag::leak,List$misFound]]];If[ds===BasisDirectory[Symbol$basis],ToExpression[ToString[Symbol$basis]<>"/:"<>String$jRulesFilename<>":=Get[BasisDirectory["<>ToString[Symbol$basis]<>"]<>\"/"<>String$jRulesFilename<>"\"]"],ToExpression[ToString[Symbol$basis]<>"/:"<>String$jRulesFilename<>":=Get[\""<>ds<>"/"<>String$jRulesFilename<>"\"]"]];LiteRedPrint["Sector ",js$sector," is recovered from file"];,
+If[Not@TrueQ@Not@ds&&dr&&FileExistsQ[FileNameJoin[{ds,String$jRulesFilename}]],jRulesF=Get[FileNameJoin[{ds,String$jRulesFilename}]];If[jRulesF==="reserved",LiteRedPrint["The sector ",js$sector," is likely being solved by another kernel. Execute SolvejSectorTag["<>ToString[js$sector]<>",DiskRecover\[Rule]True] later to update MIs["<>ToString[Symbol$basis]<>"]."];Return[Indeterminate],List$misFound=j[Symbol$basis,##]&@@List$indices/.#&/@{ToRules[LogicalExpand@Reduce[Not[Or@@jRulesF[[All,1,2]]]&&And$indicesInSector,Integers]]};If[!FreeQ[List$misFound,Alternatives@@List$indices],Message[SolvejSectorTag::leak,List$misFound]]];If[ds===BasisDirectory[Symbol$basis],ToExpression[ToString[Symbol$basis]<>"/:"<>String$jRulesFilename<>":=Get[FileNameJoin[{BasisDirectory["<>ToString[Symbol$basis]<>"],\""<>String$jRulesFilename<>"\"}]]"],ToExpression[ToString[Symbol$basis]<>"/:"<>String$jRulesFilename<>":=Get[FileNameJoin[{\""<>ds<>"\",\""<>String$jRulesFilename<>"\"}]]"]];LiteRedPrint["Sector ",js$sector," is recovered from file"];,
 (**)
 onmis=Replace[onmis,{Automatic:>If[Contexts["Mint`"]=!={},If[IntegerQ[#],#,0]&@Symbol["Mint`CountMIs"][js$sector,Symmetric->useSR],0]}];
-tcf[LiteRedPrint["Sector ",js$sector];If[Not[TrueQ@Not@ds||FileExistsQ[ds<>"/"<>String$jRulesFilename]],If[!DirectoryQ[ds],CreateDirectory[ds];Message[DiskSave::dir,ds]];Put["reserved",ds<>"/"<>String$jRulesFilename];Bool$reserved=True];(*ptrnrule\[LongDash]\:0437\:0430\:043c\:0435\:043d\:0430 List$indices \:043d\:0430 \:043f\:0430\:0442\:0442\:0435\:0440\:043d\:044b*)
+tcf[LiteRedPrint["Sector ",js$sector];If[Not[TrueQ@Not@ds||FileExistsQ[FileNameJoin[{ds,String$jRulesFilename}]]],If[!DirectoryQ[ds],CreateDirectory[ds];Message[DiskSave::dir,ds]];Put["reserved",FileNameJoin[{ds,String$jRulesFilename}]];Bool$reserved=True];(*ptrnrule\[LongDash]\:0437\:0430\:043c\:0435\:043d\:0430 List$indices \:043d\:0430 \:043f\:0430\:0442\:0442\:0435\:0440\:043d\:044b*)
 Function$orderRules[x_]:=First/@Flatten[Sort[#,(Last@#1)>(Last@#2)&]&/@SortBy[Gather[{#,j[Symbol$basis,##]&@@List$indices/.#}&/@x(*\:0421\:0430\:043c\:0438 \:043f\:0440\:0430\:0432\:0438\:043b\:0430 \:0438 \:0438\:043d\:0434\:0435\:043a\:0441\:044b \:043f\:043e\:0441\:043b\:0435 \:0438\:0445 \:043f\:0440\:0438\:043c\:0435\:043d\:0435\:043d\:0438\:044f*),MatchQ[Expand[List@@Last@#1-List@@Last@#2],{__Integer}]&(*\:0421\:043e\:0431\:0438\:0440\:0430\:0435\:043c \:0432 \:0433\:0440\:0443\:043f\:043f\:044b \:0440\:043e\:0434\:0441\:0442\:0432\:0435\:043d\:043d\:044b\:0445*)],{
 Length@First@First@#,(*# of fixed parameters*)
 Count[Last@First@#,_Integer],(*# of numeric indices*)
@@ -2850,19 +2850,19 @@ If[++depth>searchDepth&&depth<=maxDepth&&!Bool$numericIndices,searchDepth=depth;
 ];
 If[!found,
 AppendTo[indication$outputToDelete,LiteRedPrintTemporary["Found master integral "<>ToString[startp]]];AppendTo[List$misFound,j[Symbol$basis,##]&@@startp]]
-],TableForm[{Overlay[{ProgressIndicator[Count[List$indices,x_/;FreeQ[startp,x]],{0,Length@List$indices+1/2}],ToString[indication$numberOfPoints]<>"\[Rule]"<>ToString[indication$numberOfPointsToGo]},Alignment->Center],ToString[nr]<>" point: "<>ToString[startp]}]],tc,If[!Bool$numericIndices,(*If[Bool$reserved,DeleteFile[ds<>"/"<>String$jRulesFilename]];*)Return[$Failed],List$misFound=j[Symbol$basis,##]&@@List$indices/.#&/@{ToRules[LogicalExpand@Reduce[Not[Or@@jRulesF[[All,1,2]]]&&And$indicesInSector,Integers]]};If[!FreeQ[List$misFound,Alternatives@@List$indices],Message[SolvejSectorTag::leak,List$misFound]]]];If[TrueQ[Not[ds]],(#1/:jRules[##]=jRulesF),If[!DirectoryQ[ds],CreateDirectory[ds];Message[DiskSave::dir,ds]];If[!FileExistsQ[ds<>"/"<>String$jRulesFilename]||OptionValue[Replace],If[!Bool$reserved&&FileExistsQ[ds<>"/"<>String$jRulesFilename],Message[DiskSave::overwrite,ds<>"/"<>String$jRulesFilename]];
+],TableForm[{Overlay[{ProgressIndicator[Count[List$indices,x_/;FreeQ[startp,x]],{0,Length@List$indices+1/2}],ToString[indication$numberOfPoints]<>"\[Rule]"<>ToString[indication$numberOfPointsToGo]},Alignment->Center],ToString[nr]<>" point: "<>ToString[startp]}]],tc,If[!Bool$numericIndices,(*If[Bool$reserved,DeleteFile[FileNameJoin[{ds,String$jRulesFilename}]];*)Return[$Failed],List$misFound=j[Symbol$basis,##]&@@List$indices/.#&/@{ToRules[LogicalExpand@Reduce[Not[Or@@jRulesF[[All,1,2]]]&&And$indicesInSector,Integers]]};If[!FreeQ[List$misFound,Alternatives@@List$indices],Message[SolvejSectorTag::leak,List$misFound]]]];If[TrueQ[Not[ds]],(#1/:jRules[##]=jRulesF),If[!DirectoryQ[ds],CreateDirectory[ds];Message[DiskSave::dir,ds]];If[!FileExistsQ[FileNameJoin[{ds,String$jRulesFilename}]]||OptionValue[Replace],If[!Bool$reserved&&FileExistsQ[FileNameJoin[{ds,String$jRulesFilename}]],Message[DiskSave::overwrite,FileNameJoin[{ds,String$jRulesFilename}]]];
 (*ui=MapIndexed[#1\[Rule]First@#2&,Union@@jRulesF[[All,2,2]]];
-Put[{ui,used[[First/@ui]]},ds<>"/Used"<>StringDrop[String$jRulesFilename,6]];*)
-Put[Unevaluated[Last[{#1,#2}]],#3]&[jsOrder@@js$sector,jRulesF,ds<>"/"<>String$jRulesFilename];
+Put[{ui,used[[First/@ui]]},FileNameJoin[{ds,"Used"<>StringDrop[String$jRulesFilename,6]}];*)
+Put[Unevaluated[Last[{#1,#2}]],#3]&[jsOrder@@js$sector,jRulesF,FileNameJoin[{ds,String$jRulesFilename}]];
 If[ds===BasisDirectory[Symbol$basis],
-ToExpression[ToString[Symbol$basis]<>"/:"<>String$jRulesFilename<>":=Get[BasisDirectory["<>ToString[Symbol$basis]<>"]<>\"/"<>String$jRulesFilename<>"\"]"];
-ToExpression[ToString[Symbol$basis]<>"/:Used"<>StringDrop[String$jRulesFilename,6]<>":=Get[BasisDirectory["<>ToString[Symbol$basis]<>"]<>\"/Used"<>StringDrop[String$jRulesFilename,6]<>"\"]"];
+ToExpression[ToString[Symbol$basis]<>"/:"<>String$jRulesFilename<>":=Get[FileNameJoin[{BasisDirectory["<>ToString[Symbol$basis]<>"],\"/"<>String$jRulesFilename<>"\"}]]"];
+ToExpression[ToString[Symbol$basis]<>"/:Used"<>StringDrop[String$jRulesFilename,6]<>":=Get[FileNameJoin[{BasisDirectory["<>ToString[Symbol$basis]<>"],\"Used"<>StringDrop[String$jRulesFilename,6]<>"\"}]]"];(*\[DoubleLongLeftArrow]TODO: delete*)
 ,
-ToExpression[ToString[Symbol$basis]<>"/:"<>String$jRulesFilename<>":=Get[\""<>ds<>"/"<>String$jRulesFilename<>"\"]"];
-ToExpression[ToString[Symbol$basis]<>"/:Used"<>StringDrop[String$jRulesFilename,6]<>":=Get[\""<>ds<>"/Used"<>StringDrop[String$jRulesFilename,6]<>"\"]"];
+ToExpression[ToString[Symbol$basis]<>"/:"<>String$jRulesFilename<>":=Get[FileNameJoin[{\""<>ds<>"\",\""<>String$jRulesFilename<>"\"}]]"];
+ToExpression[ToString[Symbol$basis]<>"/:Used"<>StringDrop[String$jRulesFilename,6]<>":=Get[FileNameJoin[{\""<>ds<>"\",\"Used"<>StringDrop[String$jRulesFilename,6]<>"\"}]]"];
 ];
 ]]&@@js$sector;fr=Reduce[Not[Or@@(And@@Thread[List$indices==Rest[List@@#]]&/@List$misFound)||Or@@jRulesF[[All,1,2]]]&&And$indicesInSector,Integers];If[Not[TrueQ[Not[fr]]],Message[SolvejSectorTag::leak,j[Symbol$basis,##]&@@List$indices/.{ToRules[LogicalExpand@fr]}]];];MIs[Symbol$basis]^=jVars[{DeleteCases[MIs[Symbol$basis],_?(jSector[#]===js$sector&)],List$misFound}(*(*Deleted 16.03.2021*),Sort\[Rule]jSector(*/Deleted 16.03.2021*)*)];Quiet[nm/:ToMyMIs[nm]=.];(*LiteRedPrint["    Master integrals found: "<>If[List$misFound==={},"none",StringTrim[ToString[List$misFound]," "|"{"|"}"]]<>".\n\    "<>ToString["jRules"@@js$sector]<>" \[LongDash] reduction rules for the sector.\n\    MIs["<>ToString[Symbol$basis]<>"] \[LongDash] updated list of the masters."]*)
-LiteRedPrint["    "<>ToString["jRules"@@js$sector]<>" \[LongDash] reduction rules for the sector.\n    MIs["<>ToString[Symbol$basis]<>"] \[LongDash] list of master integrals appended with "<>ToString[Length@List$misFound]<>" integrals"<>If[List$misFound==={},"."," ("<>StringTrim[ToString[List$misFound]," "|"{"|"}"]<>")."]];NotebookDelete/@indication$outputToDelete;If[Not@TrueQ@Not@BasisDirectory[Symbol$basis],Quiet[DiskSave[Symbol$basis,Save->"Basis"]]];Length@List$misFound,(*Cleaning up*)If[Bool$reserved,DeleteFile[ds<>"/"<>String$jRulesFilename]];Abort[]]]
+LiteRedPrint["    "<>ToString["jRules"@@js$sector]<>" \[LongDash] reduction rules for the sector.\n    MIs["<>ToString[Symbol$basis]<>"] \[LongDash] list of master integrals appended with "<>ToString[Length@List$misFound]<>" integrals"<>If[List$misFound==={},"."," ("<>StringTrim[ToString[List$misFound]," "|"{"|"}"]<>")."]];NotebookDelete/@indication$outputToDelete;If[Not@TrueQ@Not@BasisDirectory[Symbol$basis],Quiet[DiskSave[Symbol$basis,Save->"Basis"]]];Length@List$misFound,(*Cleaning up*)If[Bool$reserved,DeleteFile[FileNameJoin[{ds,String$jRulesFilename}]]];Abort[]]]
 
 
 SolvejSectorTag::nots="The first argument of SolvejSectorTag should be js[\[Ellipsis]]. Received instead:\n`1`";
@@ -3822,7 +3822,7 @@ jplist={#,jsector@#}&/@DeleteDuplicates@Cases[{expr},_j,\[Infinity]];
 (*jplist is {{j[...],js[...]},...}*)
 (*\:043e\:0442 \:043a\:0430\:043a\:0438\:0445 \:0441\:0435\:043a\:0442\:043e\:0440\:043e\:0432 \:0437\:0430\:0432\:0438\:0441\:0438\:0442 expr*)
 jsd={"res"->DeleteDuplicates[Last/@jplist]};
-Put[{1,{"res"->expr}},dir<>"/res"];
+Put[{1,{"res"->expr}},FileNameJoin[{dir,"res"}]];
 nd=Max[Count[Last@#,1]&/@jplist];(*# of dens*)
 (*\:0446\:0438\:043a\:043b \:043f\:0435\:0440\:0432\:043e\:0439 \:0441\:0442\:0430\:0434\:0438\:0438*)
 LiteRedMonitor[
@@ -3835,10 +3835,10 @@ Which[ZeroSectorQ@hjsec,
 jlist=Cases[jplist,{x_,hjsec}:>(x->0)];
 jplist=DeleteCases[jplist,{_,hjsec}];
 jvars={jvars,First/@jlist};
-Put[{Length@jlist,jlist},dir<>"/"<>ToString[hjsec]];
+Put[{Length@jlist,jlist},FileNameJoin[{dir,ToString[hjsec]}]];
 ,
 !MatchQ[hjsec,jsecpat],(*don't reduce integrals of sectors which don't match jsecpat*)
-Put[{0,{}},dir<>"/"<>ToString[hjsec]];
+Put[{0,{}},FileNameJoin[{dir,ToString[hjsec]}]];
 jplist=DeleteCases[jplist,{_,hjsec}],
 True,
 (*\:0420\:0430\:0437\:0431\:0438\:0432\:0430\:0435\:043c \:043d\:0430 \:043f\:0430\:0441\:0441\:0438\:0432\:043d\:044b\:0439 \:0441\:043f\:0438\:0441\:043e\:043a \:0438 \:0430\:043a\:0442\:0438\:0432\:043d\:044b\:0439*)
@@ -3846,9 +3846,9 @@ jlist=Cases[jplist,{x_,hjsec}:>x];jplist=DeleteCases[jplist,{_,hjsec}];(*\:043c\
 (*\:041f\:0440\:0438\:0432\:043e\:0434\:0438\:043c \:0438\:043d\:0442\:0435\:0433\:0440\:0430\:043b\:044b \:0441\:043b\:043e\:0436\:043d\:0435\:0439\:0448\:0435\:0433\:043e \:0441\:0435\:043a\:0442\:043e\:0440\:0430*)
 rs0={};rs={};jplist1={};
 (*\:041d\:0430 \:0432\:0441\:044f\:043a\:0438\:0439 \:0441\:043b\:0443\:0447\:0430\:0439 \:043f\:0440\:043e\:0432\:0435\:0440\:044f\:0435\:043c, \:043d\:0435\:0442 \:043b\:0438 \:0444\:0430\:0439\:043b\:0430 \:0441 \:043f\:0440\:0430\:0432\:0438\:043b\:0430\:043c\:0438*)
-If[FileExistsQ[dir<>"/"<>ToString[hjsec]],
+If[FileExistsQ[FileNameJoin[{dir,ToString[hjsec]}]],
 (*\:043d\:0435\:0448\:0442\:0430\:0442\:043d\:0430\:044f \:0441\:0438\:0442\:0443\:0430\:0446\:0438\:044f, \:043e\:043f\:0442\:0438\:043c\:0438\:0437\:0438\:0440\:043e\:0432\:0430\:0442\:044c \:043d\:0435 \:0431\:0443\:0434\:0435\:043c, \:043f\:0440\:043e\:0441\:0442\:043e \:0437\:0430\:043d\:043e\:0432\:043e \:043f\:0435\:0440\:0435\:043f\:043e\:043b\:0443\:0447\:0438\:043c \:043f\:0440\:0430\:0432\:0438\:043b\:0430 \:0434\:043b\:044f \:0432\:0441\:0435\:0445 \:043d\:0435\:043e\:0431\:0445\:043e\:0434\:0438\:043c\:044b\:0445*)
-t1=Get[dir<>"/"<>ToString[hjsec]];
+t1=Get[FileNameJoin[{dir,ToString[hjsec]}]];
 jlist=DeleteDuplicates[Join[First/@Take[Last[t1],-First[t1]],jlist]]
 ];
 (*\:041f\:043e\:043b\:0443\:0447\:0430\:0435\:043c \:043f\:0440\:0430\:0432\:0438\:043b\:0430*)
@@ -3873,7 +3873,7 @@ t1=t1-Count[Take[t2,-t1],HoldPattern[x_->x_]];
 t2=DeleteCases[t2,HoldPattern[x_->x_]];
 jvars={jvars,First/@t2,Last[mis]};
 (*/Added 24.04.2023*)
-Put[{t1,t2},dir<>"/"<>ToString[hjsec]];
+Put[{t1,t2},FileNameJoin[{dir,ToString[hjsec]}]];
 (*t1 \[LongDash] \:0447\:0438\:0441\:043b\:043e \:043f\:0440\:0430\:0432\:0438\:043b \:0432 \:043a\:043e\:043d\:0446\:0435 \:0441\:043f\:0438\:0441\:043a\:0430 t2, \:043b\:0435\:0432\:044b\:0435 \:0447\:0430\:0441\:0442\:0438 \:043a\:043e\:0442\:043e\:0440\:044b\:0445 \:043f\:043e\:044f\:0432\:043b\:044f\:044e\:0442\:0441\:044f \:0432 \:0432\:044b\:0440\:0430\:0436\:0435\:043d\:0438\:044f\:0445 \:0438\:0437 \:0431\:043e\:043b\:0435\:0435 \:0432\:044b\:0441\:043e\:043a\:0438\:0445 \:0441\:0435\:043a\:0442\:043e\:0440\:043e\:0432.
  \:041e\:0441\:0442\:0430\:043b\:044c\:043d\:044b\:0435 \:043f\:0440\:0430\:0432\:0438\:043b\:0430 \:0432 t2 \:043f\:043e\:044f\:0432\:043b\:044f\:044e\:0442\:0441\:044f \:0442\:043e\:043b\:044c\:043a\:043e \:043f\:0440\:0438 \:043f\:0440\:0438\:0432\:0435\:0434\:0435\:043d\:0438\:0438 \:0438\:043d\:0442\:0435\:0433\:0440\:0430\:043b\:043e\:0432 \:0438\:0437 \:0434\:0430\:043d\:043d\:043e\:0433\:043e \:0441\:0435\:043a\:0442\:043e\:0440\:0430.*)
 (*jsd \:0432\:0441\:0435\:0433\:0434\:0430 \:0441\:043e\:0434\:0435\:0440\:0436\:0438\:0442 \:0432\:0441\:0435 \:0437\:0430\:0432\:0438\:0441\:0438\:043c\:043e\:0441\:0442\:0438*)
@@ -3889,10 +3889,10 @@ TableForm[{{Overlay[{ProgressIndicator[nd-nd1,{0,nd}],nr},Alignment->Center]},{h
 ];
 (*\:043c\:0430\:0441\:0442\:0435\:0440\:0430*)
 mis=Flatten@mis;
-Put[mis,dir<>"/MIs"];
+Put[mis,FileNameJoin[{dir,"MIs"}]];
 jvars=SortBy[Flatten@jvars,jComplexity];
-Put[jvars,dir<>"/jVars"];
-Put[jsd,dir<>"/jsDependencies"];
+Put[jvars,FileNameJoin[{dir,"jVars"}]];
+Put[jsd,FileNameJoin[{dir,"jsDependencies"}]];
 nr]
 
 
@@ -3920,13 +3920,13 @@ collect
 collect=OptionValue[Collect]/.{Collectj->(Collectj[#,Together]&),col_:>(col[#,_j,Together]&)};(*/Added 08.02.2020*)
 (*\:0441\:043e\:0437\:0434\:0430\:0451\:043c \:0440\:0430\:0431\:043e\:0447\:0443\:044e \:0434\:0438\:0440\:0435\:043a\:0442\:043e\:0440\:0438\:044e*)
 If[dir===Automatic,While[DirectoryQ[dir="IBPReduction"<>ToString[++i]],Continue[]],
-If[DirectoryQ[dir],While[DirectoryQ[dir1=dir<>"/IBPReduction"<>ToString[++i]],Continue[]];dir=dir1]];
+If[DirectoryQ[dir],While[DirectoryQ[dir1=FileNameJoin[{dir,"IBPReduction"<>ToString[++i]}]],Continue[]];dir=dir1]];
 CreateDirectory[dir];(*\:0441\:043e\:0431\:0438\:0440\:0430\:0435\:043c \:0432\:0441\:0435 j, \:043e\:043f\:0440\:0435\:0434\:0435\:043b\:044f\:0435\:043c \:0441\:043b\:043e\:0436\:043d\:0435\:0439\:0448\:0438\:0439 \:0441\:0435\:043a\:0442\:043e\:0440*)
 CheckAbort[
 nr=IBPSelect[expr,dir,jExtRules->OptionValue[jExtRules],jSector->OptionValue[jSector],jRules->(Replace[OptionValue[jRules],{None->({}&)}])];
-mis=Get[dir<>"/MIs"];
+mis=Get[FileNameJoin[{dir,"MIs"}]];
 LiteRedPrintTemporary["MIs: ",mis];
-jsd=Get[dir<>"/jsDependencies"];
+jsd=Get[FileNameJoin[{dir,"jsDependencies"}]];
 nr1=0;
 (*\:0411\:0435\:0440\:0435\:043c \:0432\:0441\:0435 \:043a\:043e\:043d\:0435\:0447\:043d\:044b\:0435 \:0441\:0435\:043a\:0442\:043e\:0440\:0430*)
 LiteRedMonitor[
@@ -3938,11 +3938,11 @@ hjsec=Pick[jsd,hjsec,True];
 (*hjsec \[LongDash] \:0441\:043f\:0438\:0441\:043e\:043a \:0441\:0435\:043a\:0442\:043e\:0440\:043e\:0432, \:0434\:043b\:044f \:043f\:0440\:0438\:0432\:0435\:0434\:0435\:043d\:0438\:044f \:043a\:043e\:0442\:043e\:0440\:044b\:0445 \:0443\:0436\:0435 \:0432\:0441\:0451 \:0435\:0441\:0442\:044c*)
 jsd=Complement[jsd,hjsec];
 Scan[(jsec=First[#];
-{t2,jrules}=Get[dir<>"/"<>ToString[jsec]];(*\:041d\:0443\:043b\:0435\:0432\:044b\:0435 \:0441\:0435\:043a\:0442\:043e\:0440\:0430 \:0437\:0434\:0435\:0441\:044c \:043f\:043e\:044f\:0432\:043b\:044f\:0442\:044c\:0441\:044f \:043d\:0435 \:0434\:043e\:043b\:0436\:043d\:044b, \:0438\:043d\:0430\:0447\:0435 \:0431\:0443\:0434\:0435\:0442 \:043e\:0448\:0438\:0431\:043a\:0430*)
+{t2,jrules}=Get[FileNameJoin[{dir,ToString[jsec]}]];(*\:041d\:0443\:043b\:0435\:0432\:044b\:0435 \:0441\:0435\:043a\:0442\:043e\:0440\:0430 \:0437\:0434\:0435\:0441\:044c \:043f\:043e\:044f\:0432\:043b\:044f\:0442\:044c\:0441\:044f \:043d\:0435 \:0434\:043e\:043b\:0436\:043d\:044b, \:0438\:043d\:0430\:0447\:0435 \:0431\:0443\:0434\:0435\:0442 \:043e\:0448\:0438\:0431\:043a\:0430*)
 t2=Append[Thread[First/@Take[jrules,-t2]->True],_j->False];
 (*******************************************************)
 (*status="Applying rules from "<>ToString[Length@#2]<>" lower sectors";*)
-jrules=jrules/.Dispatch[Join@@((Last@Get[dir<>"/"<>ToString[#]])&/@Last[#])];
+jrules=jrules/.Dispatch[Join@@((Last@Get[FileNameJoin[{dir,ToString[#]}]])&/@Last[#])];
 (*status="Finished applying from lower sectors";*)
 (*******************************************************)
 (*\:0420\:0430\:0437\:0431\:0438\:0435\:043d\:0438\:0435 \:043d\:0430 \:0441\:0442\:0443\:043f\:0435\:043d\:0438*)
@@ -3974,12 +3974,12 @@ jrules
 ];
 (*\:041e\:0441\:0442\:0430\:0432\:043b\:044f\:0435\:043c \:0442\:043e\:043b\:044c\:043a\:043e \:043f\:0440\:0430\:0432\:0438\:043b\:0430, \:043a\:043e\:0442\:043e\:0440\:044b\:0435 \:043c\:043e\:0433\:0443\:0442 \:043f\:043e\:043d\:0430\:0434\:043e\:0431\:0438\:0442\:044c\:0441\:044f \:0434\:0430\:043b\:0435\:0435. \:0414\:043e\:0432\:043e\:043b\:044c\:043d\:043e \:0447\:0435\:0440\:0435\:0437 \:0437\:0430\:0434\:043d\:0438\:0446\:0443, \:043f\:0435\:0440\:0435\:043f\:0438\:0441\:0430\:0442\:044c.*)
 jrules=First/@jrules1/.t2;
-Put[{Length@#,#}&@Pick[jrules1,jrules,True],dir<>"/"<>ToString[jsec]])&,hjsec];
+Put[{Length@#,#}&@Pick[jrules1,jrules,True],FileNameJoin[{dir,ToString[jsec]}]])&,hjsec];
 ],
 TableForm[{{Overlay[{ProgressIndicator[nr1,{0,nr}],nr1},Alignment->Center]},{jsec}}]
 ];
-(*(*Deleted 29.12.2021*)res=collect[Get[dir<>"/res"]\[LeftDoubleBracket]-1,1,-1\[RightDoubleBracket]](*/Deleted 29.12.2021*)*)
-(*Added 29.12.2021*)res=Get[dir<>"/res"][[-1,1,-1]](*/Added 29.12.2021*)
+(*(*Deleted 29.12.2021*)res=collect[Get[FileNameJoin[{dir,"res"}]\[LeftDoubleBracket]-1,1,-1\[RightDoubleBracket]](*/Deleted 29.12.2021*)*)
+(*Added 29.12.2021*)res=Get[FileNameJoin[{dir,"res"}]][[-1,1,-1]](*/Added 29.12.2021*)
 ,
 res:=Abort[]
 ];
@@ -4006,15 +4006,15 @@ FermatIBPReduce[ex_,OptionsPattern[]]:=Module[{dir,i,ex1,mis,jvars,j2n,tomis,jse
 i=1;While[FileExistsQ[dir="IBPReduction"<>ToString[i]],i++];
 CreateDirectory[dir];
 CheckAbort[IBPSelect[ex,dir];
-mis=Get[dir<>"/MIs"];
+mis=Get[FileNameJoin[{dir,"MIs"}]];
 LiteRedPrintTemporary["MIs: ",mis];
 i=0;reap[l_List]:=reap/@l;reap[x_]:=(AppendTo[resrules,#->x];#)&[j[++i]];
 ex1=First@reap[{ex}];
-jvars=Join[First/@resrules,Reverse@Get[dir<>"/jVars"]];
+jvars=Join[First/@resrules,Reverse@Get[FileNameJoin[{dir,"jVars"}]]];
 j2n=Dispatch[Thread[jvars->Range[Length[jvars]]]];
 tomis=(j@@FirstPosition[jvars,#]->#)&/@mis;
-jsecs=Sort[DeleteDuplicates[Flatten[Last/@Get[dir<>"/jsDependencies"]]],Less];
-Monitor[jrules=Join[SortBy[Flatten[Map[Last[Get[dir<>"/"<>ToString[#]]]&,jsecs]],jComplexity@*First],resrules];DeleteDirectory[dir,DeleteContents->True];
+jsecs=Sort[DeleteDuplicates[Flatten[Last/@Get[FileNameJoin[{dir,"jsDependencies"}]]]],Less];
+Monitor[jrules=Join[SortBy[Flatten[Map[Last[Get[FileNameJoin[{dir,ToString[#]}]]]&,jsecs]],jComplexity@*First],resrules];DeleteDirectory[dir,DeleteContents->True];
 nrt=Length[jrules];
 vrules=Thread[#->Table[Unique["v"],{Length[#]}]]&[Complement[Variables[Last/@jrules],jvars]],"Getting rules from files..."],
 DeleteDirectory[dir,DeleteContents->True]];
@@ -4025,7 +4025,7 @@ l=Max[StringLength/@jvarsstr];
 jvarsstr=StringPadLeft[#,l]&/@jvarsstr;*)
 save=If[Replace[OptionValue[Save],Automatic->Not[OptionValue[Run]]],1,nrt-Length[resrules]+1];
 program=(*StringRiffle[Prepend[MapIndexed["[jvars["<>ToString[First[#2]]<>"]]:='"<>#<>"';"&,jvarsstr],"Array jvars["<>ToString[Length[jvarsstr]]<>","<>ToString[l]<>"];"],"\n"];
-program=program<>"\n"<>*)StringReplace[ReadString[$LiteRedHomeDirectory<>"FermatCode/ibpreduce."<>ToString[OptionValue[Direction]]],{"<<gctime>>"->ToString[OptionValue[Share]],"<<save>>"->ToString[save]}]<>"\n"<>StringRiffle["&(J="<>ToString[Last@#]<>");"&/@vrules,"\n"]<>"\n"<>matr<>"\n&(S='<<out>>');\n!!(&o,'{');\nIBPReduce;\n!!(&o,',');\n!!(&o,'{"<>StringRiffle[ToString[#2]<>"->"<>ToString[FullForm[#1]]&@@@vrules,", "]<>"}');\n!!(&o,'}');&(S=@);";
+program=program<>"\n"<>*)StringReplace[ReadString[FileNameJoin[{$LiteRedHomeDirectory,"FermatCode","ibpreduce."<>ToString[OptionValue[Direction]]}]],{"<<gctime>>"->ToString[OptionValue[Share]],"<<save>>"->ToString[save]}]<>"\n"<>StringRiffle["&(J="<>ToString[Last@#]<>");"&/@vrules,"\n"]<>"\n"<>matr<>"\n&(S='<<out>>');\n!!(&o,'{');\nIBPReduce;\n!!(&o,',');\n!!(&o,'{"<>StringRiffle[ToString[#2]<>"->"<>ToString[FullForm[#1]]&@@@vrules,", "]<>"}');\n!!(&o,'}');&(S=@);";
 Monitor[res=Fermatica`FermatSession[program,nr,Which[StringMatchQ[#2,"row * is reduced."],ToExpression[StringReplace[#2,LetterCharacter|":"|"["|"."|"]"->""]],StringMatchQ[#2,"* debug"],Print[#2];#1,True,#1]&,Run->OptionValue[Run],In->OptionValue[In],Out->OptionValue[Out]],Overlay[{ProgressIndicator[nr,{0,nrt}],ToString[nr]<>"/"<>ToString[nrt]},Alignment->Center]];
 If[TrueQ[OptionValue[Run]],
 res=Fold[ReplaceAll,ex1,ToExpression[StringReplace[res,"j[ "~~n:DigitCharacter..~~"]":>ToString[jvars]<>"[["<>n<>"]]"]]],
@@ -4049,14 +4049,14 @@ i=1;While[FileExistsQ[place="IBPSelection"<>ToString[i]],i++];
 CreateDirectory[place];
 CheckAbort[
 IBPSelect[ex,place];
-mis=Get[place<>"/MIs"];
+mis=Get[FileNameJoin[{place,"MIs"}]];
 LiteRedPrintTemporary["MIs: ",mis];
 i=0;reap[l_List]:=reap/@l;reap[x_]:=(AppendTo[resrules,#->x];#)&[j[++i]];
 ex1=First@reap[{ex}];
-jvars=Join[First/@resrules,Reverse@Get[place<>"/jVars"]];
-jsecs=Sort[DeleteDuplicates[Flatten[Last/@Get[place<>"/jsDependencies"]]],Less];
+jvars=Join[First/@resrules,Reverse@Get[FileNameJoin[{place,"jVars"}]]];
+jsecs=Sort[DeleteDuplicates[Flatten[Last/@Get[FileNameJoin[{place,"jsDependencies"}]]]],Less];
 i=0;l=Length[jsecs];
-Monitor[jrules=Map[Last[Get[place<>"/"<>ToString[#]]]&,jsecs];jrules=Join[Flatten[jrules],resrules],Overlay[{ProgressIndicator[i,{0,l}],"Reading rules"},Alignment->Center]
+Monitor[jrules=Map[Last[Get[FileNameJoin[{place,ToString[#]}]]]&,jsecs];jrules=Join[Flatten[jrules],resrules],Overlay[{ProgressIndicator[i,{0,l}],"Reading rules"},Alignment->Center]
 ];
 If[TrueQ[OptionValue[Run]],
 jrules=FLINT`sparxGaussSolve[Subtract@@@jrules,jvars];
@@ -4989,13 +4989,13 @@ List$signs=(sec1=1-sec;sec1[[pds]]=(1-2 IntegerDigits[#,2,nds]);sec1(*1-2 Intege
 {ndepth,npower,inds,searchDepth,useSR,ds,dr,onmis,tc}={OptionValue[NumDepth],OptionValue[Numerator],Replace[OptionValue[NamingFunction],Automatic:>$NamingFunction][dim],OptionValue@Depth,OptionValue@SR,Replace[OptionValue@DiskSave,True:>BasisDirectory[nm]],Replace[OptionValue@DiskRecover,{Automatic|True->True,_->False}],OptionValue@NMIs,OptionValue@TimeConstrained};Declare[Evaluate@inds,Number];
 (*inds\[LongDash]\:043f\:0435\:0440\:0435\:043c\:0435\:043d\:043d\:044b\:0435 \:0434\:043b\:044f \:0438\:043d\:0434\:0435\:043a\:0441\:043e\:0432*)tcf=If[Not@TrueQ@Not@tc,TimeConstrained,#&];sjopts=FilterRules[(#->OptionValue[SolvejSectorDen,#])&/@First/@Options[SolvejSectorDen],Options[Solvej]];onmis=Replace[onmis,{Automatic:>If[MemberQ[$ContextPath,"Mint`"],If[IntegerQ[#],#,0]&@Symbol["CountMIs"]@sect,0]}];
 (*Recovering from disk*)
-If[Not@TrueQ@Not@ds&&dr&&FileExistsQ[ds<>"/"<>secS],jRulesF=Get[ds<>"/"<>secS];If[jRulesF==="reserved",LiteRedPrint["Sector ",sect," is likely being solved by another kernel. Execute SolvejSectorDen["<>ToString[sect]<>",DiskRecover\[Rule]True] later to update MIs["<>ToString[nm]<>"]."];
+If[Not@TrueQ@Not@ds&&dr&&FileExistsQ[FileNameJoin[{ds,secS}]],jRulesF=Get[FileNameJoin[{ds,secS}]];If[jRulesF==="reserved",LiteRedPrint["Sector ",sect," is likely being solved by another kernel. Execute SolvejSectorDen["<>ToString[sect]<>",DiskRecover\[Rule]True] later to update MIs["<>ToString[nm]<>"]."];
 Return[Indeterminate],
-mis=j[nm,##]&@@inds/.#&/@{ToRules[LogicalExpand@Reduce[Not[Or@@Thread[Pick[inds,sec,0]!=0]||Or@@Select[jRulesF,MatchQ[#[[1,1,1]],nm]&][[All,1,2]]]]]};If[!FreeQ[mis,Alternatives@@inds],Message[SolvejSectorDen::leak,mis]]];If[ds===BasisDirectory[nm],ToExpression[ToString[nm]<>"/:"<>secS<>":=Get[BasisDirectory["<>ToString[nm]<>"]<>\"/"<>secS<>"\"]"],ToExpression[ToString[nm]<>"/:"<>secS<>":=Get[\""<>ds<>"/"<>secS<>"\"]"]];LiteRedPrint["Sector ",sect," is recovered from file"];,
+mis=j[nm,##]&@@inds/.#&/@{ToRules[LogicalExpand@Reduce[Not[Or@@Thread[Pick[inds,sec,0]!=0]||Or@@Select[jRulesF,MatchQ[#[[1,1,1]],nm]&][[All,1,2]]]]]};If[!FreeQ[mis,Alternatives@@inds],Message[SolvejSectorDen::leak,mis]]];If[ds===BasisDirectory[nm],ToExpression[ToString[nm]<>"/:"<>secS<>":=Get[FileNameJoin[{BasisDirectory["<>ToString[nm]<>"],\""<>secS<>"\"}]]"],ToExpression[ToString[nm]<>"/:"<>secS<>":=Get[FileNameJoin[{\""<>ds<>"\",\""<>secS<>"\"}]]"]];LiteRedPrint["Sector ",sect," is recovered from file"];,
 (**)
 tcf[
 LiteRedPrint["Sector ",sect];
-If[Not[TrueQ@Not@ds||FileExistsQ[ds<>"/"<>secS]],If[!DirectoryQ[ds],CreateDirectory[ds];Message[DiskSave::dir,ds]];Put["reserved",ds<>"/"<>secS];rsrvd=True];scond=Inner[#2[#1]&,inds,(sec/.{1->(GreaterEqual[#,1]&),0->(LessEqual[#,0]&)}),List];ptrnrule=Inner[#1->Pattern[#1,_]?#2&,inds,(sec/.{1->Positive,0->NonPositive}),List];(*ptrnrule\[LongDash]\:0437\:0430\:043c\:0435\:043d\:0430 inds \:043d\:0430 \:043f\:0430\:0442\:0442\:0435\:0440\:043d\:044b*)(*nrordrd=Which[Length[#1]<Length[#2],True,Length[#1]>Length[#2],False,LessEqual@@((j[nm,##]&@@inds)/.{#2,#1}),True,True,False]&;*)nrordrd[x_]:=First/@Flatten[Sort[#,(Last@#1)>(Last@#2)&]&/@SortBy[Gather[{#,j[nm,##]&@@inds/.#}&/@x(*\:0421\:0430\:043c\:0438 \:043f\:0440\:0430\:0432\:0438\:043b\:0430 \:0438 \:0438\:043d\:0434\:0435\:043a\:0441\:044b \:043f\:043e\:0441\:043b\:0435 \:0438\:0445 \:043f\:0440\:0438\:043c\:0435\:043d\:0435\:043d\:0438\:044f*),MatchQ[Expand[List@@Last@#1-List@@Last@#2],{__Integer}]&(*\:0421\:043e\:0431\:0438\:0440\:0430\:0435\:043c \:0432 \:0433\:0440\:0443\:043f\:043f\:044b\\:0440\:043e\:0434\:0441\:0442\:0432\:0435\:043d\:043d\:044b\:0445*)],{Length@First@First@#,Count[Last@First@#,_Integer],Sort@Flatten@Position[Take[jComplexity[Last@First@#],-dim],Except[_Integer],{1}]}&],1];(*\:0414\:0443\:0440\:0430\:043a\:043e\:0437\:0430\:0449\:0438\:0442\:0430*)If[NumericQ[d],Message[SolvejSectorDen::dim];Abort[]];(*\:0434\:043e\:043f\:0438\:0441\:0430\:0442\:044c \:043f\:043e\:0442\:043e\:043c*)
+If[Not[TrueQ@Not@ds||FileExistsQ[FileNameJoin[{ds,secS}]]],If[!DirectoryQ[ds],CreateDirectory[ds];Message[DiskSave::dir,ds]];Put["reserved",FileNameJoin[{ds,secS}]];rsrvd=True];scond=Inner[#2[#1]&,inds,(sec/.{1->(GreaterEqual[#,1]&),0->(LessEqual[#,0]&)}),List];ptrnrule=Inner[#1->Pattern[#1,_]?#2&,inds,(sec/.{1->Positive,0->NonPositive}),List];(*ptrnrule\[LongDash]\:0437\:0430\:043c\:0435\:043d\:0430 inds \:043d\:0430 \:043f\:0430\:0442\:0442\:0435\:0440\:043d\:044b*)(*nrordrd=Which[Length[#1]<Length[#2],True,Length[#1]>Length[#2],False,LessEqual@@((j[nm,##]&@@inds)/.{#2,#1}),True,True,False]&;*)nrordrd[x_]:=First/@Flatten[Sort[#,(Last@#1)>(Last@#2)&]&/@SortBy[Gather[{#,j[nm,##]&@@inds/.#}&/@x(*\:0421\:0430\:043c\:0438 \:043f\:0440\:0430\:0432\:0438\:043b\:0430 \:0438 \:0438\:043d\:0434\:0435\:043a\:0441\:044b \:043f\:043e\:0441\:043b\:0435 \:0438\:0445 \:043f\:0440\:0438\:043c\:0435\:043d\:0435\:043d\:0438\:044f*),MatchQ[Expand[List@@Last@#1-List@@Last@#2],{__Integer}]&(*\:0421\:043e\:0431\:0438\:0440\:0430\:0435\:043c \:0432 \:0433\:0440\:0443\:043f\:043f\:044b\\:0440\:043e\:0434\:0441\:0442\:0432\:0435\:043d\:043d\:044b\:0445*)],{Length@First@First@#,Count[Last@First@#,_Integer],Sort@Flatten@Position[Take[jComplexity[Last@First@#],-dim],Except[_Integer],{1}]}&],1];(*\:0414\:0443\:0440\:0430\:043a\:043e\:0437\:0430\:0449\:0438\:0442\:0430*)If[NumericQ[d],Message[SolvejSectorDen::dim];Abort[]];(*\:0434\:043e\:043f\:0438\:0441\:0430\:0442\:044c \:043f\:043e\:0442\:043e\:043c*)
 (*\:0413\:043e\:0442\:043e\:0432\:0438\:043c\:0441\:044f \:043a \:0440\:0435\:0448\:0435\:043d\:0438\:044e \:0443\:0440\:0430\:0432\:043d\:0435\:043d\:0438\:0439 \:0432 \:0434\:0430\:043d\:043d\:043e\:043c \:0441\:0435\:043a\:0442\:043e\:0440\:0435*)
 jSector[nm]=sect;
 jRulesF={};
@@ -5069,7 +5069,7 @@ ShowSpecialCharacters->False,
 ShowStringCharacters->True,
 NumberMarks->True],
 FullForm]\)&@d}&,jRules1(*(*Deleted 23.11.2016*)/.{j[nm,inds__]->j[{nm,d},inds]}(*/Deleted 23.11.2016*)*),1]];
-(* Put[jRulesF,ds<>"/"<>secS];*)found=True;
+(* Put[jRulesF,FileNameJoin[{ds,secS}]];*)found=True;
 Break[]];]]]];)&/@(DeleteDuplicates@If[useSR&&Bool$numericIndices,DeleteCases[Join[ids@@#,sr@@#]/.ZerojRule[nm],0],ids@@#/.ZerojRule[nm]]))&/@((indication$numberOfPointsToGo=indication$numberOfPoints+Length[#];#)&@(
 (*\:0421\:043f\:0438\:0441\:043e\:043a \:0442\:043e\:0447\:0435\:043a \:0434\:043b\:044f \:043f\:043e\:0438\:0441\:043a\:0430*)(*\:0423\:0431\:043e\:0433\:0430\:044f \:0441\:043e\:0440\:0442\:0438\:0440\:043e\:0432\:043a\:0430,\:043f\:043e\:0442\:043e\:043c \:043f\:0435\:0440\:0435\:043f\:0438\:0441\:0430\:0442\:044c*)Sort[Cases[
 startp+#&/@DeleteDuplicates[Join@@Outer[Times,List$signs,layer[sec,depth,ndepth],1]](*(sec1=sec;sec1[[pds]]=#;startp+sec1)&/@
@@ -5080,7 +5080,7 @@ If[++depth>searchDepth&&!Bool$numericIndices,searchDepth=depth;AppendTo[indicati
 If[!found,
 AppendTo[indication$outputToDelete,LiteRedPrintTemporary["Found master integral "<>ToString[startp]]];AppendTo[mis,j[nm,##]&@@startp]
 ]
-],TableForm[{Overlay[{ProgressIndicator[Count[inds,x_/;FreeQ[startp,x]]-Count[sec,0],{0,nds+1/2}],ToString[indication$numberOfPoints]<>"("<>ToString[n]<>")"<>"\[Rule]"<>ToString[indication$numberOfPointsToGo]},Alignment->Center],ToString[nr]<>" point: "<>ToString[startp]}]],tc,If[!Bool$numericIndices,If[rsrvd,DeleteFile[ds<>"/"<>secS]];Return[$Failed],mis=j[nm,##]&@@inds/.#&/@{ToRules[LogicalExpand@Reduce[Not[Or[Or@@Thread[Pick[inds,sec,0]!=0],Or@@jRulesF[[All,1,2]]]]]]};If[!FreeQ[mis,Alternatives@@inds],Message[SolvejSectorDen::leak,mis]]]];If[TrueQ[Not[ds]],(#1/:jRulesDen[##]=jRulesF),If[!DirectoryQ[ds],CreateDirectory[ds];Message[DiskSave::dir,ds]];If[!FileExistsQ[ds<>"/"<>secS]||OptionValue[Replace],If[!rsrvd&&FileExistsQ[ds<>"/"<>secS],Message[DiskSave::overwrite,ds<>"/"<>secS]];ReleaseHold[Hold[Put[##]]]&[jRulesF,ds<>"/"<>secS];If[ds===BasisDirectory[nm],ToExpression[ToString[nm]<>"/:"<>secS<>":=Get[BasisDirectory["<>ToString[nm]<>"]<>\"/"<>secS<>"\"]"],ToExpression[ToString[nm]<>"/:"<>secS<>":=Get[\""<>ds<>"/"<>secS<>"\"]"]]]]&@@sect;fr=Reduce[Not[Or@@(And@@Thread[inds==Rest[List@@#]]&/@mis)||Or@@jRulesF[[All,1,2]]||Or@@Thread[Pick[inds,sec,0]!=0]]];If[Not[TrueQ[Not[fr]]],Message[SolvejSectorDen::leak,j[nm,##]&@@inds/.{ToRules[LogicalExpand@fr]}]];];MIs[nm]^=jVars[{DeleteCases[MIs[nm],_?(jSector[#]===sect&)],mis}(*(*Deleted 16.03.2021*),Sort\[Rule]jSector(*/Deleted 16.03.2021*)*)];LiteRedPrint["    "<>ToString[Length@mis]<>" master integrals found"<>If[mis==={},"",":\n"<>StringTrim[ToString[mis]," "|"{"|"}"]]<>".\n    "<>ToString["jRulesDen"@@sect]<>" \[LongDash] reduction rules for the sector.\n    MIs["<>ToString[nm]<>"] \[LongDash] updated list of the masters."];NotebookDelete/@indication$outputToDelete;If[Not@TrueQ@Not@BasisDirectory[nm],Quiet[DiskSave[nm,Save->"Basis"]]];Length@mis,(*Cleaning up*)If[rsrvd,DeleteFile[ds<>"/"<>secS]];Abort[]]]]
+],TableForm[{Overlay[{ProgressIndicator[Count[inds,x_/;FreeQ[startp,x]]-Count[sec,0],{0,nds+1/2}],ToString[indication$numberOfPoints]<>"("<>ToString[n]<>")"<>"\[Rule]"<>ToString[indication$numberOfPointsToGo]},Alignment->Center],ToString[nr]<>" point: "<>ToString[startp]}]],tc,If[!Bool$numericIndices,If[rsrvd,DeleteFile[FileNameJoin[{ds,secS}]]];Return[$Failed],mis=j[nm,##]&@@inds/.#&/@{ToRules[LogicalExpand@Reduce[Not[Or[Or@@Thread[Pick[inds,sec,0]!=0],Or@@jRulesF[[All,1,2]]]]]]};If[!FreeQ[mis,Alternatives@@inds],Message[SolvejSectorDen::leak,mis]]]];If[TrueQ[Not[ds]],(#1/:jRulesDen[##]=jRulesF),If[!DirectoryQ[ds],CreateDirectory[ds];Message[DiskSave::dir,ds]];If[!FileExistsQ[FileNameJoin[{ds,secS}]]||OptionValue[Replace],If[!rsrvd&&FileExistsQ[FileNameJoin[{ds,secS}]],Message[DiskSave::overwrite,FileNameJoin[{ds,secS}]]];ReleaseHold[Hold[Put[##]]]&[jRulesF,FileNameJoin[{ds,secS}]];If[ds===BasisDirectory[nm],ToExpression[ToString[nm]<>"/:"<>secS<>":=Get[FileNameJoin[{BasisDirectory["<>ToString[nm]<>"],\""<>secS<>"\"}]]"],ToExpression[ToString[nm]<>"/:"<>secS<>":=Get[FileNameJoin[{\""<>ds<>"\",\""<>secS<>"\"}]]"]]]]&@@sect;fr=Reduce[Not[Or@@(And@@Thread[inds==Rest[List@@#]]&/@mis)||Or@@jRulesF[[All,1,2]]||Or@@Thread[Pick[inds,sec,0]!=0]]];If[Not[TrueQ[Not[fr]]],Message[SolvejSectorDen::leak,j[nm,##]&@@inds/.{ToRules[LogicalExpand@fr]}]];];MIs[nm]^=jVars[{DeleteCases[MIs[nm],_?(jSector[#]===sect&)],mis}(*(*Deleted 16.03.2021*),Sort\[Rule]jSector(*/Deleted 16.03.2021*)*)];LiteRedPrint["    "<>ToString[Length@mis]<>" master integrals found"<>If[mis==={},"",":\n"<>StringTrim[ToString[mis]," "|"{"|"}"]]<>".\n    "<>ToString["jRulesDen"@@sect]<>" \[LongDash] reduction rules for the sector.\n    MIs["<>ToString[nm]<>"] \[LongDash] updated list of the masters."];NotebookDelete/@indication$outputToDelete;If[Not@TrueQ@Not@BasisDirectory[nm],Quiet[DiskSave[nm,Save->"Basis"]]];Length@mis,(*Cleaning up*)If[rsrvd,DeleteFile[FileNameJoin[{ds,secS}]]];Abort[]]]]
 
 
 SolvejSectorDen::nots="The first argument of SolvejSectorDen should be js[\[Ellipsis]]. Received instead:\n`1`";
@@ -5148,8 +5148,8 @@ tcf=If[Not@TrueQ@Not@tc,TimeConstrained,#&];
 sjopts=FilterRules[(#->OptionValue[SolvejSectorDen,#])&/@First/@Options[SolvejSectorDen],Options[Solvej]];
 onmis=Replace[onmis,{Automatic:>If[MemberQ[$ContextPath,"Mint`"],If[IntegerQ[#],#,0]&@Symbol["CountMIs"]@sect,0]}];
 (*Recovering from disk*)
-If[Not@TrueQ@Not@ds&&dr&&FileExistsQ[ds<>"/"<>secS],
-jRulesF=Get[ds<>"/"<>secS];
+If[Not@TrueQ@Not@ds&&dr&&FileExistsQ[FileNameJoin[{ds,secS}]],
+jRulesF=FileNameJoin[{ds,secS}];
 If[jRulesF==="reserved", 
 LiteRedPrint["The sector ",sect," is likely being solved by another kernel. Execute SolvejSectorDen["<>ToString[sect]<>",DiskRecover\[Rule]True] later to update MIs["<>ToString[nm]<>"]."];
 ,
@@ -5157,14 +5157,14 @@ mis=j[nm,##]&@@inds/.#&/@{ToRules[LogicalExpand@Reduce[Not[Or@@jRulesF[[All,1,2]
 If[!FreeQ[mis,Alternatives@@inds],Message[SolvejSectorDen::leak,mis]]
 ];
 If[ds===BasisDirectory[nm],
-ToExpression[ToString[nm]<>"/:"<>secS<>":=Get[BasisDirectory["<>ToString[nm]<>"]<>\"/"<>secS<>"\"]"],
-ToExpression[ToString[nm]<>"/:"<>secS<>":=Get[\""<>ds<>"/"<>secS<>"\"]"]
+ToExpression[ToString[nm]<>"/:"<>secS<>":=Get[FileNameJoin[{BasisDirectory["<>ToString[nm]<>"],\""<>secS<>"\"}]]"],
+ToExpression[ToString[nm]<>"/:"<>secS<>":=Get[FileNameJoin[{\""<>ds<>"\",\""<>secS<>"\"}]]"]
 ];LiteRedPrint["Sector ",sect," is recovered from file"];
 ,
 (**)
 tcf[
 LiteRedPrint["Sector ",sect];
-If[Not[TrueQ@Not@ds||FileExistsQ[ds<>"/"<>secS]],If[!DirectoryQ[ds],CreateDirectory[ds];Message[DiskSave::dir,ds]];Put["reserved",ds<>"/"<>secS];rsrvd=True];
+If[Not[TrueQ@Not@ds||FileExistsQ[FileNameJoin[{ds,secS}]]],If[!DirectoryQ[ds],CreateDirectory[ds];Message[DiskSave::dir,ds]];Put["reserved",FileNameJoin[{ds,secS}]];rsrvd=True];
 scond=Inner[#2[#1]&,inds,(sec/.{1->(GreaterEqual[#,1]&),0->(LessEqual[#,0]&)}),List];
 ptrnrule=Inner[#1-> Pattern[#1,_]?#2&,inds,(sec/.{1->Positive,0->NonPositive}),List];
 (*ptrnrule \[LongDash] \:0437\:0430\:043c\:0435\:043d\:0430 inds \:043d\:0430 \:043f\:0430\:0442\:0442\:0435\:0440\:043d\:044b*)
@@ -5293,7 +5293,7 @@ AppendTo[FoundRules,{fromRules[{rules1}],rules2}];
 (*\:0417\:0434\:0435\:0441\:044c \:0432 \:0431\:0443\:0434\:0443\:0449\:0435\:043c \:0441\:043e\:0440\:0442\:0438\:0440\:043e\:0432\:043a\:0443 \:043d\:0443\:0436\:043d\:043e \:0443\:0442\:043e\:0447\:043d\:0438\:0442\:044c*)
 NoRules=nrordrd[expandRules[{ToRules@smartReduce[LogicalExpand[fromRules[Rest@NoRules]||fromRules[{rules1}]&&rules2]]}]];
 AppendTo[jRulesF,jRules1];
-ReleaseHold[Hold[Put[##]]]&[jRulesF,ds<>"/"<>secS];
+ReleaseHold[Hold[Put[##]]]&[jRulesF,FileNameJoin[{ds,secS}]];
 Continue[]
 ];
 ]]]];)&/@(DeleteDuplicates@If[useSR&&numi,DeleteCases[Join[ids@@#,SR[nm]@@#],0],ids@@#]))&/@
@@ -5323,7 +5323,7 @@ ToString[nr]<>" point: "<>ToString[startp]}]
 ],
 tc,
 If[!numi,
-If[rsrvd,DeleteFile[ds<>"/"<>secS]];Return[$Failed],
+If[rsrvd,DeleteFile[FileNameJoin[{ds,secS}]]];Return[$Failed],
 mis=j[nm,##]&@@inds/.#&/@{ToRules[LogicalExpand@Reduce[Not[Or@@jRulesF[[All,1,2]]]]]};
 If[!FreeQ[mis,Alternatives@@inds],Message[SolvejSectorDen::leak,mis]]
 ]
@@ -5331,12 +5331,12 @@ If[!FreeQ[mis,Alternatives@@inds],Message[SolvejSectorDen::leak,mis]]
 If[TrueQ[Not[ds]],
 (#1/:jRulesDen[##]=jRulesF),
 If[!DirectoryQ[ds],CreateDirectory[ds];Message[DiskSave::dir,ds]];
-If[!FileExistsQ[ds<>"/"<>secS]||OptionValue[Replace],
-If[!rsrvd&&FileExistsQ[ds<>"/"<>secS],Message[DiskSave::overwrite,ds<>"/"<>secS]];
-ReleaseHold[Hold[Put[##]]]&[jRulesF,ds<>"/"<>secS];
+If[!FileExistsQ[FileNameJoin[{ds,secS}]]||OptionValue[Replace],
+If[!rsrvd&&FileExistsQ[FileNameJoin[{ds,secS}]],Message[DiskSave::overwrite,FileNameJoin[{ds,secS}]]];
+ReleaseHold[Hold[Put[##]]]&[jRulesF,FileNameJoin[{ds,secS}]];
 If[ds===BasisDirectory[nm],
-ToExpression[ToString[nm]<>"/:"<>secS<>":=Get[BasisDirectory["<>ToString[nm]<>"]<>\"/"<>secS<>"\"]"],
-ToExpression[ToString[nm]<>"/:"<>secS<>":=Get[\""<>ds<>"/"<>secS<>"\"]"]
+ToExpression[ToString[nm]<>"/:"<>secS<>":=Get[FileNameJoin[{BasisDirectory["<>ToString[nm]<>"],\""<>secS<>"\"}]]"],
+ToExpression[ToString[nm]<>"/:"<>secS<>":=Get[FileNameJoin[{\""<>ds<>"\",\""<>secS<>"\"}]]"]
 ]
 ]]&@@sect;
 fr=Reduce[Not[Or@@(And@@Thread[inds==Rest[List@@#]]&/@mis)||Or@@jRulesF[[All,1,2]]]];
@@ -5351,7 +5351,7 @@ If[Not@TrueQ@Not@BasisDirectory[nm],Quiet[DiskSave[nm,Save->"Basis"]]];
 Length@mis
 ,
 (*Cleaning up*)
-If[rsrvd,DeleteFile[ds<>"/"<>secS]];Abort[]
+If[rsrvd,DeleteFile[FileNameJoin[{ds,secS}]]];Abort[]
 ]
 ]
 ];
@@ -5388,7 +5388,7 @@ CheckAbort[
 jplist={#,jSector@#}&/@DeleteDuplicates@Cases[{expr},_j,\[Infinity]];
 If[jplist==={},Return[expr]];
 jsd={"res"->((*{#1,FromDigits[{##2},2]}&@@@*)DeleteDuplicates[Last/@jplist])};
-Put[{1,{"res"->expr}},dir<>"/res"];
+Put[{1,{"res"->expr}},FileNameJoin[{dir,"res"}]];
 nd=Max[Count[Last@#,1]&/@jplist];
 LiteRedMonitor[
 While[jplist=!={},
@@ -5397,7 +5397,7 @@ jsec=DeleteDuplicates[Last/@jplist];hjsec={Count[#,1],#}&@First@jsec;Scan[(t1={C
 {nd1,hjsec}=hjsec;hjsecn=hjsec(*{First@hjsec,FromDigits[Rest[List@@hjsec],2]}*);
 (*\:0420\:0430\:0437\:0431\:0438\:0432\:0430\:0435\:043c \:043d\:0430 \:043f\:0430\:0441\:0441\:0438\:0432\:043d\:044b\:0439 \:0441\:043f\:0438\:0441\:043e\:043a \:0438 \:0430\:043a\:0442\:0438\:0432\:043d\:044b\:0439*)
 If[MemberQ[ZeroSectors@First@hjsec,hjsec],
-Put[{Replace[j[{#1,Pattern[#,Blank[]]&@d},##2]&@@hjsec,{1->(_?Positive),0->(_?NonPositive)},{1}]->0},dir<>"/"<>ToString[hjsecn]];
+Put[{Replace[j[{#1,Pattern[#,Blank[]]&@d},##2]&@@hjsec,{1->(_?Positive),0->(_?NonPositive)},{1}]->0},FileNameJoin[{dir,ToString[hjsecn]}]];
 (*nr+=1;*)
 jplist=DeleteCases[jplist,{_,hjsec}];
 ,
@@ -5423,7 +5423,7 @@ jlist=Cases[jlist,{x_,hjsec}:>x];
 ];
 t2=Thread[rs0-> rs];
 mis={mis,Cases[t2,HoldPattern[x_->x_]:>x]};
-Put[{t1,t2},dir<>"/"<>ToString[hjsecn]];
+Put[{t1,t2},FileNameJoin[{dir,ToString[hjsecn]}]];
 AppendTo[jsd,hjsecn->((*{#1,FromDigits[{##2},2]}&@@@*)DeleteDuplicates[Last/@jplist1])];
 jplist=Join[jplist,jplist1];
 ];
@@ -5448,11 +5448,11 @@ SetSharedFunction[j,js];
 jsec={};Print[hjsec];*)
 ((*CriticalSection[{lock},jsec=Append[jsec,#1]]*)
 jsec=#1;
-{t2,jrules}=Get[dir<>"/"<>ToString[#1]];
+{t2,jrules}=Get[FileNameJoin[{dir,ToString[#1]}]];
 t2=Append[Thread[First/@Take[jrules,-t2]->True],_j->False];
 (*******************************************************)
 (*status="Applying rules from "<>ToString[Length@#2]<>" lower sectors";*)
-jrules=jrules/.Dispatch[Join@@(Get[dir<>"/"<>ToString[#]]&/@#2)];
+jrules=jrules/.Dispatch[Join@@(Get[FileNameJoin[{dir,ToString[#]}]]&/@#2)];
 (*status="Finished applying from lower sectors";*)
 (*******************************************************)
 (*\:0420\:0430\:0437\:0431\:0438\:0435\:043d\:0438\:0435 \:043d\:0430 \:0441\:0442\:0443\:043f\:0435\:043d\:0438*)
@@ -5480,12 +5480,12 @@ nr1+=Length@t1
 jrules
 ];
 jrules=First/@jrules1/.t2;
-Put[Pick[jrules1,jrules,True],dir<>"/"<>ToString[#1]];
+Put[Pick[jrules1,jrules,True],FileNameJoin[{dir,ToString[#1]}]];
 (*CriticalSection[{lock},jsec=DeleteCases[jsec,#1]];*))&@@@hjsec;
 ],
 TableForm[{{Overlay[{ProgressIndicator[nr1,{0,nr}],nr1},Alignment->Center]},{jsec}}]
 ];
-res=Collect[Get[dir<>"/res"][[1,-1]]/.jc->j,_j,Factor],
+res=Collect[Get[FileNameJoin[{dir,"res"}]][[1,-1]]/.jc->j,_j,Factor],
 res:=Abort[]
 ];
 DeleteDirectory[dir,DeleteContents->True];

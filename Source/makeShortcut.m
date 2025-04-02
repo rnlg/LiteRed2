@@ -1,3 +1,5 @@
+(* ::Package:: *)
+
 (*
 makeShortcut.m - written by Roman Lee.
 This script assumes that the package is loaded from the
@@ -8,22 +10,26 @@ Modification of PACKAGE below should be sufficient when adjusting script to new 
 *)
 PACKAGE="LiteRed2";
 
-SetDirectory[DirectoryName[$InputFileName]]
-appdir=$UserBaseDirectory <> "/Applications/"<>PACKAGE<>"/";
+thisfile=If[$Notebooks,NotebookFileName[],$InputFileName];
+SetDirectory[DirectoryName[thisfile]];
+appdir=FileNameJoin[{$UserBaseDirectory,"Applications",PACKAGE}];
 file = Join[FileNames[PACKAGE<>"*.wl"],FileNames[PACKAGE<>"*.m"]];
 If[file==={},Print["No "<>PACKAGE<>"*.m or "<>PACKAGE<>"*.wl in "<>Directory[]<>". Changed nothing, quitting..."];Quit[]];
 file=Last[file];
 Quiet[CreateDirectory[appdir]];
-init=OpenWrite[appdir<>"init.m"];
+init=OpenWrite[FileNameJoin[{appdir,"init.m"}]];
 WriteString[init,"Begin[\""<>PACKAGE<>"`Private`\"]\n\
-  Module[{path=\""<>Directory[]<>"/\",file=\""<>file<>"\"},\n\
-    If[FileExistsQ[path<>file],\n\
-      Get[path<>file],\n\
+  Module[{path=\""<>StringReplace[Directory[],"\\"->"\\\\"]<>"\",file=\""<>file<>"\"},\n\
+    If[FileExistsQ[FileNameJoin[{path,file}]],\n\
+      Get[FileNameJoin[{path,file}]],\n\
       Print[\"Error: can not find \"<>file<>\"\\nCheck if this file exists in \"<>path]\n\
     ]\n\
   ]"<>"\n\
 End[];"
+];
+Close[init];
+If[$Notebooks,
+Print["Installed shortcut for "<>file<>".\nTo load the package, use\n  ",Style["<<"<>PACKAGE<>"`",Red]],
+Print["Installed shortcut for "<>file<>".\nTo load the package, use\n  \033[1;31m<<"<>PACKAGE<>"`\033[0m"]
 ]
-Close[init]
-Print["Installed shortcut for "<>file<>".\nTo load the package, use\n  \033[1;31m<<"<>PACKAGE<>"`\033[1;0m"]
 Quit[]
