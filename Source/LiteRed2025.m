@@ -2398,7 +2398,7 @@ LiteRedPrint["Sector ",jsect," is recovered from file. ",Style["jsOrder has chan
 Catch[throw=False;tcf[LiteRedPrint["Sector ",jsect];If[Not[TrueQ@Not@disksave||FileExistsQ[FileNameJoin[{disksave,file}]]],If[!DirectoryQ[disksave],CreateDirectory[disksave];Message[DiskSave::dir,disksave]];Put["reserved",FileNameJoin[{disksave,file}]];reserved=True];
 (*Prepare to solution*)
 jSector[nm]=jsect;(*set default sector for proper ordering*)
-jRulesF={};
+jRulesF={};indicnr=Length[jRulesF];
 parameters=DeleteCases[Parameters[nm],_Integer|_Rational];
 If[TrueQ[OptionValue[jGraph]],AppendTo[indicoutput,LiteRedPrintTemporary[jGraphPlot[jsect,ImageSize->Tiny]]]];
 AppendTo[indicoutput,LiteRedPrintTemporary["    Parameters "<>ToString[parameters]<>" are assumed to be independent."]];
@@ -2437,7 +2437,7 @@ vars=Join[parameters,inds];(*Join[inds,parameters](*old*)*)
 clean[dbase,vars];
 
 indicspent=Round[AbsoluteTime[]-indicstime];
-If[indicpb<nds-Length@inds,indicpb=nds-Length@inds;indicsip=indicsip<>", "<>ToString[nds-indicpb]<>"@"<>ToString[indicspent]];
+If[indicpb<nds-Length@inds,indicpb=nds-Length@inds;indicsip=indicsip<>", "<>ToString[nds-indicpb]<>"@"<>ToString[indicspent]<>"("<>ToString[indicnr]<>")"];
 tctr=Select[tct,First[#]<nds-indicpb&];If[tctr=!={}&&tctr[[1,2]]<indicspent,LiteRedPrint[Style["Exceeded time limit ("<>ToString[tctr[[1,2]]]<>") for restricting to "<>ToString[tctr[[1,1]]]<>" symbolic indices. Exiting SolvejSector with $Failed\[Ellipsis]",Red]];throw=True;Throw[$Failed]];
 If[tctr==={},tc1=Infinity,tc1=tctr[[1,2]]-indicspent+1];
 TimeConstrained[
@@ -2461,7 +2461,7 @@ AppendTo[badconditions,RulesToCondition[{case}]&&ruleFound[[1,2]]];i,Unevaluated
 cases];
 cases=Delete[cases,ii];
 (*/ check if the case is a subcase*)
-indicnr++;indicnop=0;
+indicnop=0;
 except=Alternatives[];
 pat1=(j[nm,##]&@@(Pattern[#,Blank[]]&/@indices))/;Evaluate[RulesToCondition[cases]];
 pos=Flatten[Position[indices,Alternatives@@inds,1]];
@@ -2489,7 +2489,7 @@ jRules1=(#/.MapThread[#1->Expand[2#1-#2]&,{indices[[pos]],Rest[List@@First[#]][[
 (*If[!FreeQ[rules2,Power[_,Except[_Integer]]],dbg1=jRules1;Abort[]];*)
 If[rules2=!=True,(*Found the rule!*)
 AppendTo[rulesFound,{RulesToCondition[{case}],rules2}];
-AppendTo[jRulesF,jRules1];
+AppendTo[jRulesF,jRules1];indicnr=Length[jRulesF];
 AppendTo[badconditions,RulesToCondition[{case}]&&rules2];
 cases=DeleteCases[cases,case];
 If[cases==={},Break[]];
@@ -3699,7 +3699,7 @@ holdjRules[[1,0]],
 Get,Put[newjRules,holdjRules[[1,1]]],
 _,TagSet@@Prepend[Append[jrules,newjRules],nm]
 ];
-prstr="Appended rule to "<>ToString[HoldForm@@jrules]<>"].";
+prstr="Appended rule to "<>ToString[HoldForm@@jrules]<>".";
 If[MemberQ[MIs[nm],jj],
 MIs[nm]^=DeleteCases[MIs[nm],jj];Quiet[nm/:ToMyMIs[nm]=.];
 prstr=prstr<>"\nRemoved "<>ToString[jj]<>" from MIs["<>ToString[nm]<>"]"
@@ -3735,7 +3735,10 @@ MyMIs::lindep ="Custom master integrals should be linearly independent.";
 MyMIs::append ="Insufficient number of custom master integrals. Appending with original ones.";
 
 
-MyMIs/:Set[MyMIs[nm_],mislist:{j[nm_,___]...}]:=Module[{mis=mislist,tomis},If[Quiet[Check[tomis=ToMIsRule[mis];True,False]],
+MyMIs[nm_?DsBasisQ]:=MyMIs[nm]^=MIs[nm]
+
+
+MyMIs/:Set[MyMIs[nm_?DsBasisQ],mislist:{j[nm_,___]...}]:=Module[{mis=mislist,tomis},If[(tomis=ToMIsRule[mis])=!=$Failed,
 If[Length[mis]<Length[MIs[nm]],Message[MyMIs::append];mis=jVars[MIs[nm]/.tomis]];
 MyMIs[nm]^=mis;
 ToMyMIs[nm]^=tomis;
@@ -3743,6 +3746,18 @@ LiteRed`Private`LiteRedPrint["Successfully set custom master integrals."];mis,
 Message[MyMIs::lindep];$Failed
 ]
 ]
+
+
+MyMIs/:Set[MyMIs[nm_?DsBasisQ,ns:(0|1)..],mislist:{j[nm_,___]...}]:=Module[{mis=MIs[nm,ns],tomis},
+If[MatrixRank[Outer[Coefficient,IBPReduce[mislist],mis]]<Length@mis,Message[MyMIs::lindep];$Failed,
+MyMIs[nm]^=jVars[{Complement[MyMIs[nm],MyMIs[nm,ns]],mislist}];
+Quiet[nm/:ToMyMIs[nm]=.];
+MyMIs[nm]
+]
+]
+
+
+MyMIs[nm_?DsBasisQ,ns:(0|1)..]:=Select[MyMIs[nm],jSector[#]===js[nm,ns]&]
 
 
 MyMIs[nm1_?DsBasisQ,nms__?DsBasisQ]:=Join@@(MyMIs/@{nm1,nms});
@@ -4059,15 +4074,19 @@ i=0;l=Length[jsecs];
 Monitor[jrules=Map[Last[Get[FileNameJoin[{place,ToString[#]}]]]&,jsecs];jrules=Join[Flatten[jrules],resrules],Overlay[{ProgressIndicator[i,{0,l}],"Reading rules"},Alignment->Center]
 ];
 If[TrueQ[OptionValue[Run]],
-jrules=FLINT`sparxGaussSolve[Subtract@@@jrules,jvars];
+jrules=FLINT`sparxGaussSolve[Subtract@@@jrules,jvars,First/@resrules];
 DeleteDirectory[place,DeleteContents->True];
 Return[ex1/.jrules],
 i=1;While[FileExistsQ[in="in"<>ToString[i]<>".rs"],i++];
 i=1;While[FileExistsQ[out="out"<>ToString[i]<>".rs"],i++];
 prules=FLINT`flintPutEquations[Subtract@@@jrules,jvars,in];
+OpenAppend[in];
+WriteString[in,"targets "<>StringRiffle[Flatten[Position[jvars,#,{1}]&/@(First/@resrules)]," "]<>"\n"];
+Close[in];
 Print["The matrix in RedSparx format is in the file \""<>in<>"\".\nUse RedSparx to process it with \!\(\*
-StyleBox[\"breduce\",\nFontWeight->\"Bold\"]\). Save it with \!\(\*
-StyleBox[\"put\",\nFontWeight->\"Bold\"]\), e.g., in the file \""<>out<>"\".\nThen use flintGetRules[\""<>out<>"\",jvars]/.(prules), where {prules,jvars} is the output below."];
+StyleBox[\"breduce_targets\",\nFontWeight->\"Bold\"]\). Save it with \!\(\*
+StyleBox[\"put\",\nFontWeight->\"Bold\"]\), e.g., in the file \""<>out<>"\".\nThen use flintGetRules[\""<>out<>"\",jvars]/.(prules), where {jvars,prules} is the output below."];
+DeleteDirectory[place,DeleteContents->True];
 Return[{jvars,Reverse/@prules}]
 ]
 ,DeleteDirectory[place,DeleteContents->True];Abort[]
@@ -5606,7 +5625,7 @@ FeynGraphPlot::usage="FeynGraphPlot[jGraph[j[...]], \!\(\*
 StyleBox[\"options\",\nFontSlant->\"Italic\"]\)] draws a graph.\nAccepted graph format is a list with each element being {e,{s,n,l}}, where e is an edge (like in 1\[Rule]2), s is the line style, n in the number of dots, l is a label. Many options are common with GraphPlot. Altered/new options are EdgeLabeling,VertexStyle, VertexSize, LabelStyle, EdgeStyle, EdgeLabeling.\nTo understand their format, check their default values with Options[FeynGraphPlot, {VertexStyle, VertexSize, LabelStyle, EdgeStyle, EdgeLabeling}].";
 
 
-Options[FeynGraphPlot]={GraphLayout->"SpringElectricalEmbedding",VertexCoordinates->Automatic,EdgeLabels->False,EdgeStyle->{_->{Black}},VertexStyle->{_->{Black,Disk[]}},VertexSize->{_->0.003},VertexLabels->None,VertexLabelStyle->{Red},Background->None,Frame->False,FrameLabel->None,FrameStyle->{},LabelStyle->{},ImageMargins->0,ImagePadding->All,ImageSize->Automatic,ImageSizeRaw->Automatic,LabelStyle->Red,(*Method\[Rule]Automatic,*)(*MultiedgeStyle\[Rule]Automatic,*)PackingMethod->Automatic,PlotLabel->None};
+Options[FeynGraphPlot]={GraphLayout->"SpringElectricalEmbedding",VertexCoordinates->Automatic,EdgeLabels->False,EdgeStyle->{_->{Black}},VertexStyle->{_->{Black,Disk[]}},VertexSize->{_->0.003},VertexLabels->None,VertexLabelStyle->{Red},Background->None,Frame->False,FrameLabel->None,FrameStyle->{},LabelStyle->{},ImageMargins->0,ImagePadding->All,ImageSize->Automatic,ImageSizeRaw->Automatic,LabelStyle->Red,(*Method\[Rule]Automatic,*)MultiedgeStyle->Automatic,PackingMethod->Automatic,PlotLabel->None,Epilog->{}};
 
 
 FeynGraphPlot::err="Don't understand edge format in `1`";
