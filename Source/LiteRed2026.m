@@ -207,6 +207,7 @@ FindExtSymmetries;
 AttachGraph;
 jGraph;
 GraphSort;
+FeynGraphContract;
 FeynGraphPlot;
 jGraphPlot;
 jGraphFeynMP;
@@ -4299,7 +4300,7 @@ LP[j[nm_,ns__],OptionsPattern[]]:=Module[{ds,nns,ls=LMs[nm],G,xs},
 {ds,nns}=Transpose@Cases[Transpose[{Ds[nm],{ns}}],{_,Except[0]}];
 xs=OptionValue[NamingFunction][Count[{ns},Except[0]]];
 G=Plus@@(FeynParUF[ds,ls,Sign->OptionValue[Sign],Function->True]@@xs);
-{Gamma[MetricTensor[]/2]/Gamma[(Length[ls]+1)MetricTensor[]/2-Plus@@nns] Fold[If[#2[[2]]>0,#2[[1]]^(#2[[2]]-1)*#1,(-1)^-#2[[2]] D[#1,#2*{1,-1}]/.#2[[1]]->0]&,G^(-MetricTensor[]/2),Transpose[{xs,nns}]],Cases[Transpose[{xs,nns}],{x_,_?Positive}:>x]}
+{Gamma[MetricTensor[]/2]/Gamma[(Length[ls]+1)MetricTensor[]/2-Plus@@nns] Fold[If[#2[[2]]>0,#2[[1]]^(#2[[2]]-1)/Gamma[#2[[2]]]*#1,(-1)^-#2[[2]] D[#1,#2*{1,-1}]/.#2[[1]]->0]&,G^(-MetricTensor[]/2),Transpose[{xs,nns}]],Cases[Transpose[{xs,nns}],{x_,_?Positive}:>x]}
 ]
 
 
@@ -5627,6 +5628,10 @@ jGraph[js[nm_,x:(0|1)..],opts___]:=jGraph[j[nm,x],opts]
 
 
 todo["jGraph: make better treatment for dots and edge numbers. Maybe even to write a dedicated procedure for printing graphs."];
+
+
+FeynGraphContract::usage="FeynGraphContract[graph,i] contracts i-th edge";
+FeynGraphContract[g_,i_]:=MapAt[#/.Rule@@g[[i,1]]&,Delete[g,i],{All,1,All}]
 
 
 FeynGraphPlot::usage="FeynGraphPlot[jGraph[j[...]], \!\(\*
