@@ -3041,22 +3041,30 @@ zsectors=Pick[sectors,st];sectors=Pick[sectors,st,False];*)
 (*Previously used assumption that the sectors with the number of denominators less than a number of loops.
 It fails for non-standard denominators, in particularly, coming from Feynman parametrization of two and more propagators*)
 zsectors={};(*/Modified 02.07.2019*)
+Print["[AS-LOG] phase 1 start: ",nsects," sectors to classify; method: ",str," t=",DateString[]];$LR$ASTotal=AbsoluteTime[];
 While[sectors=!={},(*While the list has not been depleted*)(*Take the point in the middle of the list*)s1=sectors[[Ceiling[Length@sectors/2]]];
-If[(cds=!=(cds*s1))||chzf@BitOr[ps,s1],(*then move the sector and all its subsectors from sectors to zsectors*)
+Print["[AS-LOG] test s1=",s1," (denom=",Count[s1,1],") remaining=",Length@sectors," zs=",Length@zsectors," nzs=",Length@nzsectors," elapsed=",Round[AbsoluteTime[]-$LR$ASTotal,0.01],"s t=",DateString[]];
+$LR$ChzfT0=AbsoluteTime[];
+$LR$Verdict=(cds=!=(cds*s1))||chzf@BitOr[ps,s1];
+Print["[AS-LOG]   chzf took ",Round[AbsoluteTime[]-$LR$ChzfT0,0.001],"s -> ",If[$LR$Verdict,"ZERO","NONZERO"]];
+If[$LR$Verdict,(*then move the sector and all its subsectors from sectors to zsectors*)
 st=jsectge[s1-#]&/@sectors;
 zsectors=Join[zsectors,Pick[sectors,st]];
-sectors=Pick[sectors,st,False],(*Otherwise,move the sector and all its supersectors from sectors to nzsectors*)
+sectors=Pick[sectors,st,False];
+Print["[AS-LOG]   -> zsectors+",Count[st,True]," (now zs=",Length@zsectors,", remaining=",Length@sectors,")"],(*Otherwise,move the sector and all its supersectors from sectors to nzsectors*)
 st=jsectle[s1-#]&/@sectors;
 nzsectors=Join[nzsectors,Pick[sectors,st]];
-sectors=Pick[sectors,st,False]]],TableForm[{str,ProgressIndicator[Length@sectors,{nsects,0}]}]];
+sectors=Pick[sectors,st,False];
+Print["[AS-LOG]   -> nzsectors+",Count[st,True]," (now nzs=",Length@nzsectors,", remaining=",Length@sectors,")"]]],TableForm[{str,ProgressIndicator[Length@sectors,{nsects,0}]}]];Print["[AS-LOG] phase 1 done in ",Round[AbsoluteTime[]-$LR$ASTotal,0.01],"s; zs=",Length@zsectors," nzs=",Length@nzsectors];
 (*Now form the list of basis sectors*)sectors=Sort[nzsectors,Which[Plus@@#1>Plus@@#2,False,Plus@@#1<Plus@@#2,True,True,OrderedQ[{#1,#2}]]&];
 nsects1=Length@sectors;
-LiteRedMonitor[While[sectors=!={},s1=First@sectors;
+Print["[AS-LOG] phase 2 start: forming BasisSectors&SimpleSectors over ",nsects1," nz sectors t=",DateString[]];$LR$BT0=AbsoluteTime[];$LR$BIter=0;
+LiteRedMonitor[While[sectors=!={},$LR$BIter++;If[Mod[$LR$BIter,100]==1,Print["[AS-LOG]   phase 2 iter=",$LR$BIter," remaining=",Length@sectors," bsectors=",Length@bsectors," ssectors=",Length@ssectors," elapsed=",Round[AbsoluteTime[]-$LR$BT0,0.01],"s"]];s1=First@sectors;
 sectors=Rest@sectors;
 st=Select[bsectors,jsectge[s1-#]&];
 If[st=!={},If[s1=!=BitOr@@st,
 AppendTo[bsectors,s1]],
-AppendTo[bsectors,s1];AppendTo[ssectors,s1]]],TableForm[{"Forming SimpleSectors&BasisSectors...",ProgressIndicator[Length@sectors,{nsects1,0}]}]];
+AppendTo[bsectors,s1];AppendTo[ssectors,s1]]],TableForm[{"Forming SimpleSectors&BasisSectors...",ProgressIndicator[Length@sectors,{nsects1,0}]}]];Print["[AS-LOG] phase 2 done in ",Round[AbsoluteTime[]-$LR$BT0,0.01],"s; bsectors=",Length@bsectors," ssectors=",Length@ssectors];
 zsectors=js[nm,##]&@@@zsectors;
 nzsectors=js[nm,##]&@@@nzsectors;
 ssectors=js[nm,##]&@@@ssectors;
