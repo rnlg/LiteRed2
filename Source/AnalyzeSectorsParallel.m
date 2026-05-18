@@ -84,6 +84,25 @@ AnalyzeSectors[nm_, patt_, OptionsPattern[]] := Module[
                             Function->False];
     g = Function[t, Append[# D[t,#]&/@xs, t]]/@MonomialList[u+g, xs];
 
+    (* Numerical-rank chzf: replace every symbolic parameter (any Symbol in g
+       other than the Feynman params xs) with a random prime BEFORE distributing
+       to the kernels. The chzf zero-test asks whether MatrixRank[g/.xs->m]
+       is bounded by Count[m,1]; for generic random parameter values this rank
+       coincides with the symbolic rank with probability 1, so the verdict is
+       preserved. MatrixRank on the resulting integer matrix runs orders of
+       magnitude faster than the symbolic version (no Groebner / poly GCD work). *)
+    Module[{params, paramRules},
+      params = Complement[
+        DeleteDuplicates@Cases[g, _Symbol, Infinity, Heads -> False],
+        xs];
+      If[params =!= {},
+        paramRules = # -> Prime[1000 + RandomInteger[{0, 50000}]] & /@ params;
+        g = g /. paramRules;
+        LiteRedPrint["[AS-PAR] numerical chzf: substituted ", Length@params,
+                     " parameter(s) ", params, " with random primes."]
+      ]
+    ];
+
     (* Hoist polynomial + options to globals and distribute to kernels once. *)
     $ASPar$g   = g;
     $ASPar$xs  = xs;
@@ -99,7 +118,7 @@ AnalyzeSectors[nm_, patt_, OptionsPattern[]] := Module[
         MatrixRank[$ASPar$g /. Thread[$ASPar$xs -> m]] <= Count[m, 1]
       ]
     ];
-    str = "FeynParUF (parallel batched)";
+    str = "FeynParUF (parallel batched, numerical chzf)";
     ,
     (* IBP-corner branch — left sequential. *)
     If[!ValueQ[IBP@nm], Message[AnalyzeSectors::noibp, nm]; Return[$Failed]];
