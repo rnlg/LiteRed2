@@ -36,12 +36,24 @@ If[$VersionNumber < 10.0,
   Abort[]
 ];
 
-$ASParBatchSize := If[$KernelCount > 0, $KernelCount, 1];
+(* Default batch size = 16 * $KernelCount: empirically the sweet spot on the
+   gravity3l (15D) benchmark — large enough that the parallel chzf cost amortises
+   the per-batch cascade work, small enough that few sibling candidates are
+   wasted by absorption. Override with `$ASParBatchSize = N;` for very large
+   topologies (22D+ may want N=256-1024). *)
+$ASParBatchSize := If[$KernelCount > 0, 16 * $KernelCount, 1];
 
 If[!ValueQ[$ASOriginalSaved],
   $ASOriginalDownValues = DownValues[AnalyzeSectors];
   $ASOriginalSaved = True;
 ];
+
+(* Enter LiteRed`Private` so that:
+   - jsectge / jsectle (defined in LiteRed`Private`) resolve normally
+   - Module-local symbol names match those produced by the serial version
+     (which is itself defined inside LiteRed`Private`) — important for the
+     ZerojRule serialized form. *)
+Begin["LiteRed`Private`"];
 
 ClearAll[AnalyzeSectors];
 Options[AnalyzeSectors] = {CutDs -> Automatic, FeynParUF -> True};
@@ -56,7 +68,9 @@ AnalyzeSectors[nm_, patt_, OptionsPattern[]] := Module[
    sectors, zsectors, nzsectors = {}, ssectors = {}, bsectors = {},
    dbase, s1, st, cds, ps, str, u, g, xs, x, x2,
    chzfPar, useFP, K, candidates, verdicts,
-   t0, ti, n0, i, v, s1k},
+   t0, ti, n0, i, v, s1k,
+   bvToInt, intToBv, sectorsInt, zsectorsInt, nzsectorsInt,
+   candidatesInt, s1kInt},
 
   CurrentState[nm, AnalyzeSectors] = False;
 
@@ -65,7 +79,7 @@ AnalyzeSectors[nm_, patt_, OptionsPattern[]] := Module[
   useFP = TrueQ[OptionValue[FeynParUF]];
 
   If[useFP,
-    {u, g, xs} = FeynParUF[j[nm, ##]&@@ConstantArray[1, nds],
+    {u, g, xs} = FeynParUF[js[nm, ##]&@@ConstantArray[1, nds],
                             NamingFunction->(Table[Unique[], {#}]&),
                             Function->False];
     g = Function[t, Append[# D[t,#]&/@xs, t]]/@MonomialList[u+g, xs];
@@ -100,27 +114,40 @@ AnalyzeSectors[nm_, patt_, OptionsPattern[]] := Module[
   ];
 
   sectors = Cases[(IntegerDigits[#1, 2, nds]&)/@Range[0, 2^nds-1], patt];
+  sectors = Developer`ToPackedArray[sectors];
   nsects  = Length@sectors;
-  zsectors = {};
+
+  (* Encode each {0,1}-vector sector as a single integer (high bit = first slot).
+     Cascade now uses BitOr-based subset tests on a packed integer vector — no
+     per-candidate matrix allocation, no per-sector function call.
+
+       jsectge[s1k - sec] (≡ sec ⊆ s1k bit-wise) ≡ BitOr[sec, s1k] == s1k
+       jsectle[s1k - sec] (≡ s1k ⊆ sec bit-wise) ≡ BitOr[sec, s1k] == sec
+  *)
+  bvToInt[bv_]  := FromDigits[bv, 2];
+  intToBv[i_]   := IntegerDigits[i, 2, nds];
+  sectorsInt    = Developer`ToPackedArray[bvToInt /@ sectors];
+  zsectorsInt   = {};
+  nzsectorsInt  = {};
 
   Print["[AS-PAR] phase 1 start: ", nsects, " sectors; method=", str,
         ", kernels=", $KernelCount, ", batch=", $ASParBatchSize, ", t=", DateString[]];
   t0 = AbsoluteTime[];
 
   K = $ASParBatchSize;
-  While[sectors =!= {},
-    Module[{n = Length@sectors, idx},
-      (* Pick K evenly spaced indices: the original code's "middle" + spread. *)
+  While[sectorsInt =!= {},
+    Module[{n = Length@sectorsInt, idx},
       idx = If[K >= n,
         Range[n],
         DeleteDuplicates@Round@Rest@Subdivide[0, n, K+1]
       ];
       idx = Select[idx, 1 <= # <= n &];
       If[idx === {}, idx = {Ceiling[n/2]}];
-      candidates = sectors[[idx]];
+      candidatesInt = sectorsInt[[idx]];
+      candidates    = intToBv /@ candidatesInt;  (* chzfPar wants bit-vectors *)
     ];
 
-    n0 = Length@sectors;
+    n0 = Length@sectorsInt;
     ti = AbsoluteTime[];
 
     verdicts = If[useFP && $KernelCount > 0 && Length@candidates > 1,
@@ -129,24 +156,30 @@ AnalyzeSectors[nm_, patt_, OptionsPattern[]] := Module[
     ];
 
     Do[
-      s1k = candidates[[i]];
-      If[!MemberQ[sectors, s1k], Continue[]];  (* absorbed by a prior sibling *)
+      s1kInt = candidatesInt[[i]];
+      If[!MemberQ[sectorsInt, s1kInt], Continue[]];  (* absorbed by a prior sibling *)
       v = verdicts[[i]];
       If[v,
-        st = jsectge[s1k - #]&/@sectors;
-        zsectors  = Join[zsectors,  Pick[sectors, st]];
-        sectors   = Pick[sectors, st, False],
-        st = jsectle[s1k - #]&/@sectors;
-        nzsectors = Join[nzsectors, Pick[sectors, st]];
-        sectors   = Pick[sectors, st, False]]
-    , {i, Length@candidates}];
+        (* jsectge: keep sectors where BitOr[sec, s1k] == s1k, i.e. diff == 0. *)
+        st = Unitize[BitOr[sectorsInt, s1kInt] - s1kInt];     (* 0 = subset *)
+        zsectorsInt  = Join[zsectorsInt,  Pick[sectorsInt, st, 0]];
+        sectorsInt   = Pick[sectorsInt, st, 1],
+        (* jsectle: keep sectors where BitOr[sec, s1k] == sec, i.e. diff == 0. *)
+        st = Unitize[BitOr[sectorsInt, s1kInt] - sectorsInt];  (* 0 = superset *)
+        nzsectorsInt = Join[nzsectorsInt, Pick[sectorsInt, st, 0]];
+        sectorsInt   = Pick[sectorsInt, st, 1]]
+    , {i, Length@candidatesInt}];
 
     Print["[AS-PAR]   batch=", Length@candidates,
-          " removed=", n0 - Length@sectors,
+          " removed=", n0 - Length@sectorsInt,
           " chzf+classify=", Round[AbsoluteTime[] - ti, 0.01], "s",
-          " remaining=", Length@sectors,
-          " zs=", Length@zsectors, " nzs=", Length@nzsectors];
+          " remaining=", Length@sectorsInt,
+          " zs=", Length@zsectorsInt, " nzs=", Length@nzsectorsInt];
   ];
+
+  (* Decode back to bit-vector form for the rest of the algorithm. *)
+  zsectors  = intToBv /@ zsectorsInt;
+  nzsectors = intToBv /@ nzsectorsInt;
 
   Print["[AS-PAR] phase 1 done in ", Round[AbsoluteTime[] - t0, 0.01], "s; ",
         "zs=", Length@zsectors, " nzs=", Length@nzsectors];
@@ -164,7 +197,12 @@ AnalyzeSectors[nm_, patt_, OptionsPattern[]] := Module[
     $LR$BIter++;
     s1 = First@sectors;
     sectors = Rest@sectors;
-    st = Select[bsectors, jsectge[s1 - #]&];
+    (* Vectorised jsectge[s1 - #] over packed bsectors:
+         Pick rows whose min(bsec - s1) is non-positive. Equivalent: jsectge[s1 - bsec]
+         = Not[Or@@Negative[s1 - bsec]] = Min[s1 - bsec] >= 0 = Max[bsec - s1] <= 0.
+         Using NonPositive on row-max keeps the work in C on the packed array.       *)
+    st = If[bsectors === {}, {},
+            Pick[bsectors, NonPositive[Max /@ (bsectors - ConstantArray[s1, Length[bsectors]])]]];
     If[st =!= {},
       If[s1 =!= BitOr@@st, AppendTo[bsectors, s1]],
       AppendTo[bsectors, s1]; AppendTo[ssectors, s1]]
@@ -203,6 +241,8 @@ AnalyzeSectors[nm_, patt_, OptionsPattern[]] := Module[
   If[Not@TrueQ@Not@BasisDirectory[nm], Quiet[DiskSave[nm, Save->"Basis"]]];
   Length@NonZeroSectors[nm]
 ];
+
+End[];  (* LiteRed`Private` *)
 
 Print["[AS-PAR] patch loaded. $KernelCount=", $KernelCount,
       "  $ASParBatchSize=", $ASParBatchSize,
